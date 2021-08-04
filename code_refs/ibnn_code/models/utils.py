@@ -80,7 +80,7 @@ class StoLayer(object):
     
     def get_mult_noise(self, input, indices):
         mean = self.posterior_U_mean
-        std = F.softplus(self.posterior_U_std)
+        std = F.softplus(self.posterior_U_std) # a smooth approximation of ReLU 
         components = D.Normal(mean[indices], std[indices])
         return components.rsample()
     

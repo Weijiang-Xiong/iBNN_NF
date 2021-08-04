@@ -242,7 +242,7 @@ def plot_flow_density(base_dist, flow, ax, range_lim=4, n=200, output_dir=None):
 if __name__ == '__main__':
 
     args = parser.parse_args()
-    
+    args.train, args.evaluate, args.plot, args.no_cuda = True, True, True, True
     # args.device = torch.device("cpu")
     args.device = torch.device('cuda:0' if torch.cuda.is_available() and not args.no_cuda else 'cpu')
 
@@ -300,3 +300,6 @@ if __name__ == '__main__':
     if args.plot:
         plot_target_density(u_z, plt.gca(), output_dir=args.output_dir)
         plot_flow_density(base_dist, flow, plt.gca(), output_dir=args.output_dir)
+        
+        
+    print("")
