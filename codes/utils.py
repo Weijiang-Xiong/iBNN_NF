@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.distributions as D
 import torch.nn.functional as F 
+EPS = np.finfo(np.float32).eps
 
 """ contains utility functions, like metrics and plotting helper
 """
@@ -47,7 +48,7 @@ class ECELoss(nn.Module):
         self.acc_list = torch.zeros(n_bins)
         self.conf_list = torch.zeros(n_bins)
         self.sample_per = torch.zeros(n_bins)
-        self.n_samples = 0 # number of processed samples, for batched forward 
+        self.n_samples = torch.zeros(n_bins) # number of processed samples in each bin, for batched forward 
 
     def forward(self, probs, labels, is_logit=False):
         """ compute the expected calibration error of a classification output
@@ -87,37 +88,34 @@ class ECELoss(nn.Module):
         """
         if is_logit:
             probs = F.softmax(probs, dim=-1)
-            
-        batch_size = labels.shape[0]
-        weights = torch.tensor([self.n_samples, batch_size])
-        weights = weights/weights.sum()
         
         confidences, predictions = torch.max(probs, 1)
         correct_samples = predictions.eq(labels)
         
         for idx, (bin_lower, bin_upper) in enumerate(zip(self.bin_lowers, self.bin_uppers)):
             in_bin = confidences.gt(bin_lower.item()) * confidences.le(bin_upper.item())
-            prop_in_bin = in_bin.float().mean()
+            num_in_bin, prop_in_bin = in_bin.sum(), in_bin.float().mean()
+            n, k = self.n_samples[idx], num_in_bin  
             
             if prop_in_bin > 0.0:
+                weights = torch.tensor([n, k])/torch.tensor([n+k])
                 accuracy_in_bin = correct_samples[in_bin].float().mean()
                 avg_confidence_in_bin = confidences[in_bin].mean()
-                # suppose we've already calculated the mean of n previous samples, i.e., self.acc_list[idx]
-                # now we are adding a size-k batch, i.e., accuracy_in_bin, and want to average over n+k samples
-                # we can weight the previous mean by n/(n+k), and the new batch by k/(n+k) and 
-                # compute weighted mean of the two 
-                self.acc_list[idx] = torch.mean(torch.tensor([self.acc_list[idx], accuracy_in_bin])*weights).item()
-                self.conf_list[idx] = torch.mean(torch.tensor([self.conf_list[idx], avg_confidence_in_bin])*weights).item()
-                self.sample_per[idx] = torch.mean(torch.tensor([self.sample_per[idx], prop_in_bin])*weights).item()
+                # suppose we've already calculated the mean of n previous samples in a bin, i.e., self.acc_list[idx]
+                # now we are adding k new samples to that bin, i.e., accuracy_in_bin, and want to average over n+k samples
+                # we can weight the previous mean by n/(n+k), and the new batch by k/(n+k) and compute weighted mean of the two 
+                self.acc_list[idx] = torch.sum(torch.tensor([self.acc_list[idx], accuracy_in_bin])*weights).item()
+                self.conf_list[idx] = torch.sum(torch.tensor([self.conf_list[idx], avg_confidence_in_bin])*weights).item()
                 
-        self.n_processed_samples += batch_size 
+            self.n_samples[idx] += k
 
     def summarize_batch(self):
+        self.sample_per = self.n_samples/torch.norm(self.n_samples, p=1)
         return torch.sum(torch.abs(self.acc_list - self.conf_list)*self.sample_per)
 
     def plot_acc_conf_gap(self):
         """ plot the confidence-accuracy gap
-            must run a forward pass first 
+            must run a forward pass first (or summarize_batch for batched ece)
         """
         if len(self.acc_list) == 0 or len(self.conf_list) == 0:
             print("run forward pass before plotting ece")
@@ -142,6 +140,40 @@ class ECELoss(nn.Module):
         plt.show()
         
 def test_batched_ece():
+    
     from models import LogisticRegression
     
+    full_ece = ECELoss(n_bins=15)
     log_reg = LogisticRegression(2, 2, True)
+    data = torch.randn(1000, 2)
+    label = torch.randint(0,2,(1000,))
+    pred_prob = log_reg(data).exp()
+    full_loss = full_ece.forward(pred_prob, label)
+    
+    list_batch_pred = []
+    batch_ece = ECELoss(n_bins=15)
+    batch_size = 100
+    for idx in range(10):
+        batch_X = data[idx*batch_size:(idx+1)*batch_size, :]
+        batch_Y = label[idx*batch_size:(idx+1)*batch_size]
+        b_pred_prob = log_reg.forward(batch_X).exp()
+        list_batch_pred.append(b_pred_prob)
+        batch_ece.add_batch(b_pred_prob, batch_Y)
+    cat_batch_result = torch.cat(list_batch_pred, dim=0)
+    batch_loss = batch_ece.summarize_batch()
+    
+    conditions = [] 
+    conditions.append(torch.allclose(cat_batch_result, pred_prob))
+    conditions.append(torch.allclose(batch_ece.acc_list, full_ece.acc_list))
+    conditions.append(torch.allclose(batch_ece.conf_list, full_ece.conf_list))
+    conditions.append(torch.allclose(batch_ece.sample_per, full_ece.sample_per))
+    conditions.append(torch.allclose(batch_loss, full_loss))
+    
+    if all(conditions):
+        print("Test Pass: Batched ECE loss is equivalent to full ECE")
+    else:
+        print("Test Fail: Batched ECE loss is NOT equivalent to full ECE")
+    
+    
+if __name__ == "__main__":
+    test_batched_ece()

@@ -92,6 +92,16 @@ class PlanarFlow2d(nn.Module):
         sum_log_abs_det_jacobians += log_abs_det_jacobian
         
         return f_z, sum_log_abs_det_jacobians
+
+class ElementFlow(nn.Module):
+    
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, x):
+        pass 
+    
+
 class NF_Block(nn.Module):
 
     flow_types = {
@@ -151,14 +161,19 @@ def test_2d_planar_flow():
     out_2d, ldj_2d = planar_2d(data)
     
     if torch.allclose(out_1d, out_2d) and torch.allclose(ldj_1d, ldj_2d):
-        print("Pass test: 2D flow is consistent with iteratively applying 1D flow")
+        print("Test Pass: 2D flow is consistent with iteratively applying 1D flow")
+    else:
+        print("Test Fail: 2D flow is NOT consistent with iteratively applying 1D flow")
 
-if __name__ == "__main__":
-    test_2d_planar_flow()
+def test_flow_cfg_format():
     flow_cfg = [("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
                 ("planar2d", 8, {"init_sigma":0.01})] # the second stack of flows (type, depth, params)
     norm_flow = NF_Block(vec_len=16, flow_cfg=flow_cfg)
     print(norm_flow)
+
+if __name__ == "__main__":
+    test_2d_planar_flow()
+    test_flow_cfg_format()
 
         
         

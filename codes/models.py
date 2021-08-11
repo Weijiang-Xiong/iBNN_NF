@@ -307,9 +307,9 @@ def test_model_initialization():
     cond3 = torch.allclose(base_out3, sto_out3)
     
     if all([cond1, cond2, cond3]):
-        print("Test Pass: Model Initialization and Migration")
+        print("Test Pass: Migrated model shares the deterministic part with base model")
     else:
-        print("Test Fail: Model Initialization and Migration")
+        print("Test Fail: Migrated model doesn't share the deterministic part with base model")
     
 if __name__ == "__main__":
     
