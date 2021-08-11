@@ -92,14 +92,34 @@ class PlanarFlow2d(nn.Module):
         sum_log_abs_det_jacobians += log_abs_det_jacobian
         
         return f_z, sum_log_abs_det_jacobians
-
 class ElementFlow(nn.Module):
     
-    def __init__(self):
+    act_fun = {
+        "tanh": F.tanh,
+    }
+    der_fun = {
+        "tanh": lambda x: 1 - F.tanh(x)**2
+    }
+    
+    def __init__(self, act="tanh"):
         super().__init__()
+        self.act = ElementFlow.act_fun.get(act, "tanh")
+        self.der = ElementFlow.der_fun.get(act, "tanh")
     
     def forward(self, x):
-        pass 
+        """ x (Tensor of size (N, C, H, W) )
+        """
+        if isinstance(x, tuple):
+            z, sum_log_abs_det_jacobians = x
+        else:
+            z, sum_log_abs_det_jacobians = x, 0
+        
+        f_z = self.act(z)
+        log_abs_det_jacobian = torch.sum(torch.log(torch.abs(self.der(z))), dim=1)
+        sum_log_abs_det_jacobians += log_abs_det_jacobian
+        return f_z, sum_log_abs_det_jacobians
+    
+
     
 
 class NF_Block(nn.Module):
@@ -108,6 +128,7 @@ class NF_Block(nn.Module):
         "affine": AffineTransform,
         "planar": PlanarFlow,
         "planar2d": PlanarFlow2d,
+        "element": ElementFlow,
     }
     
     def __init__(self, vec_len=2, flow_cfg=None):
