@@ -55,6 +55,16 @@ class StoModel(nn.Module):
         kl_divergence = self.kl_div()
         return log_likelihood, kl_divergence    
     
+    def sto_and_det_params(self):
+        det_params, sto_params = [], []
+        for name, layer in self._modules.items():
+            if isinstance(layer, StoLayer):
+                det_params.append(layer.det_compo.parameters())
+                sto_params.append(layer.norm_flow.parameters())
+            else:
+                det_params.append(layer.parameters())
+        return det_params, sto_params     
+    
     def migrate_from_det_model(self):
         raise NotImplementedError
     
@@ -278,7 +288,7 @@ def test_model_initialization():
     sto_model_cfg = [
                 ("normal", {"loc":1.0, "scale":0.5},  # the name of base distribution and parameters for that distribution
                     [("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
-                    ("planar2d", 6, {"init_sigma":0.01})] # the second stack of flows (type, depth, params)
+                    ("planar", 6, {"init_sigma":0.01})] # the second stack of flows (type, depth, params)
                 ),
                 (
                     "normal", {"loc":1.0, "scale":0.5}, 
@@ -296,6 +306,17 @@ def test_model_initialization():
     sto_out2 = sto_mlp(data)
     cond2 = torch.allclose(base_out2, sto_out2)
     
+    sto_model_cfg = [
+            ("normal", {"loc":1.0, "scale":0.5},  
+                [("affine", 1, {"learnable":True}), 
+                ("planar2d", 6, {"init_sigma":0.01})] # use planar2d for image data 
+            ),
+            (
+                "normal", {"loc":1.0, "scale":0.5}, 
+                [("affine", 1), 
+                    ("planar", 6)]
+            )
+            ]
     base_lenet = LeNet()
     sto_lenet = StoLeNet(sto_model_cfg)
     sto_lenet.migrate_from_det_model(base_lenet)

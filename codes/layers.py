@@ -14,7 +14,9 @@ class StoLayer(nn.Module):
 
     def __init__(self):
         super(StoLayer, self).__init__()
-        self.base_dist, self.norm_flow = None, None
+        self.det_compo = None
+        self.base_dist = None
+        self.norm_flow = None
         self.mean_log_det_jacobian = None  # to compute KL divergence
         # is_stochastic indicates if a proper stochastic part has been initialized
         # and it can be used to disable stochastic part (maybe useful?)

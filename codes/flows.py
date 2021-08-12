@@ -4,8 +4,9 @@ import torch.nn.functional as F
 import torch.distributions as D
 
 import numpy as np 
+from typing import List, Tuple, Dict, Set
+from utils import EPS
 
-EPS = np.finfo(np.float32).eps
 class PlanarFlow(nn.Module):
     """ modified based on https://github.com/kamenbliznashki/normalizing_flows/blob/master/planar_flow.py
     """
@@ -93,11 +94,14 @@ class PlanarFlow2d(nn.Module):
         
         return f_z, sum_log_abs_det_jacobians
 class ElementFlow(nn.Module):
-    
-    act_fun = {
+    """ apply element wise transformation to the samples, similar to activation 
+        idea from Lecture 3 of Deep Unsupervised Learning at UC Berkeley 
+        https://drive.google.com/file/d/1j-3ErOVr8gPLEbN6J4jBeO84I7CqQdde/view
+    """
+    act_fun = { # activation functions 
         "tanh": F.tanh,
-    }
-    der_fun = {
+    } 
+    der_fun = { # derivatives 
         "tanh": lambda x: 1 - F.tanh(x)**2
     }
     
@@ -119,9 +123,6 @@ class ElementFlow(nn.Module):
         sum_log_abs_det_jacobians += log_abs_det_jacobian
         return f_z, sum_log_abs_det_jacobians
     
-
-    
-
 class NF_Block(nn.Module):
 
     flow_types = {
@@ -187,8 +188,10 @@ def test_2d_planar_flow():
         print("Test Fail: 2D flow is NOT consistent with iteratively applying 1D flow")
 
 def test_flow_cfg_format():
-    flow_cfg = [("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
-                ("planar2d", 8, {"init_sigma":0.01})] # the second stack of flows (type, depth, params)
+    flow_cfg: List[Tuple] = [ # the first stack of flows (type, depth, params)
+                             ("affine", 1, {"learnable":True}), 
+                              # keys of params must be consistent with the arguments in the flow
+                             ("planar2d", 8, {"init_sigma":0.01})] 
     norm_flow = NF_Block(vec_len=16, flow_cfg=flow_cfg)
     print(norm_flow)
 

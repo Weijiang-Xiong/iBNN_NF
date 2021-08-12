@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.distributions as D
 import torch.nn.functional as F 
-EPS = np.finfo(np.float32).eps
+EPS:float = np.finfo(np.float32).eps
 
 """ contains utility functions, like metrics and plotting helper
 """
