@@ -19,11 +19,13 @@ class StoModel(nn.Module):
         return sum([m.kl_div() for m in self.sto_layers]) 
     
     def make_prediction(self, x, n_samples=128, return_all_probs=False):
+        """ output normalized class probability and variances
+        """
         # draw `n_samples` stochastic noise for each input and treat them as batches 
         x = x.repeat_interleave(n_samples, dim=0) 
-        log_prob = self.forward(x)
+        log_prob = self.forward(x) # don't expect the model to output normalized (log) probability
         log_prob = log_prob.reshape(-1, n_samples, x.size(1)) # result size (batch_size, n_samples, n_classes)
-        probs = log_prob.exp()
+        probs = F.softmax(log_prob, dim=-1) # works even if the model outputs un-normalized log probability  
         # average over the samples, result size (batch_size, n_classes)
         variances, mean_prob = torch.var_mean(probs, dim=1, unbiased=False)
         if return_all_probs:
@@ -47,23 +49,29 @@ class StoModel(nn.Module):
             layer.build_flow(vec_len, dist_name, dist_params, flow_cfg)    
             
     def calc_loss(self, log_probs, label):
+        """
+            log_probs : unnormalized log probability
+        """
         # elbo =  log_likelihood - kl_divergence (both should be averaged over samples)
         # but log_likelihood is averaged over samples AND data points (cleaner code)
-        log_likelihood = D.Categorical(logits=log_probs).log_prob(label).mean()
+        log_likelihood = D.Categorical(logits=log_probs).log_prob(label).mean() 
         # so remember to divide kl by the number of data points 
         # maybe len(dataset), or len(dataloader)*dataloader.batch_size
         kl_divergence = self.kl_div()
         return log_likelihood, kl_divergence    
     
-    def sto_and_det_params(self):
+    def det_and_sto_params(self):
+        """ return the deterministic and stochastic parameters in the model
+            both det_params and sto_params are list of nn.Parameters
+        """
         det_params, sto_params = [], []
         for name, layer in self._modules.items():
             if isinstance(layer, StoLayer):
-                det_params.append(layer.det_compo.parameters())
-                sto_params.append(layer.norm_flow.parameters())
+                det_params.extend(list(layer.det_compo.parameters()))
+                sto_params.extend(list(layer.norm_flow.parameters()))
             else:
-                det_params.append(layer.parameters())
-        return det_params, sto_params     
+                det_params.extend(list(layer.parameters()))
+        return det_params, sto_params
     
     def migrate_from_det_model(self):
         raise NotImplementedError
@@ -200,7 +208,7 @@ class LeNet(nn.Module):
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 10)
 
-    def forward(self, x):
+    def forward(self, x:torch.Tensor):
         """
         Args:
           x of shape (batch_size, 1, 28, 28): Input images.
@@ -208,14 +216,15 @@ class LeNet(nn.Module):
         Returns:
           y of shape (batch_size, 10): Outputs of the network.
         """
+        device = x.device
         x = F.max_pool2d(F.relu(self.conv1(x)), (2,2), 2) # cell size (2,2), stride 2
         x = F.max_pool2d(F.relu(self.conv2(x)), (2,2), 2)
         # flatten the features, but keep the batch dimension
         x = x.view(-1, int(torch.prod(torch.Tensor(list(x.size())[1:])))) 
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+        x = self.fc3(x) # use F.log_softmax() depending on needs
+        return x.to(device)
     
 class StoLeNet(StoModel):
 
@@ -239,14 +248,15 @@ class StoLeNet(StoModel):
         Returns:
           y of shape (batch_size, 10): Outputs of the network.
         """
+        device = x.device
         x = F.max_pool2d(F.relu(self.conv1(x)), (2,2), 2) # cell size (2,2), stride 2
         x = F.max_pool2d(F.relu(self.conv2(x)), (2,2), 2)
         # flatten the features, but keep the batch dimension
         x = x.view(-1, int(torch.prod(torch.Tensor(list(x.size())[1:])))) 
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+        x = self.fc3(x) # use F.log_softmax() depending on needs
+        return x.to(device)
 
     def kl_div(self):
         return sum([m.kl_div() for m in self.sto_layers]) 
@@ -266,6 +276,48 @@ class StoLeNet(StoModel):
                     layer.weight.data.copy_(getattr(det_model, name).weight.data)
                     layer.bias.data.copy_(getattr(det_model, name).bias.data)
 
+def test_optimizer():
+    sto_model_cfg = [
+            ("normal", {"loc":1.0, "scale":0.5},  # the name of base distribution and parameters for that distribution
+                [("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
+                ("planar2d", 6, {"init_sigma":0.01})] # the second stack of flows (type, depth, params)
+            ),
+            (
+                "normal", {"loc":1.0, "scale":0.5}, 
+                [("affine", 1), 
+                 ("planar", 6)]
+            )
+            ]
+    sto_model = StoLeNet(sto_cfg=sto_model_cfg)
+    det_params, sto_params = sto_model.det_and_sto_params()
+    optimizer = torch.optim.Adam([
+                    {'params': det_params, 'lr': 1e-4},
+                    {'params': sto_params, 'lr': 1e-3}
+                ])
+    print("Test Pass: Parameters accepted by optimizer")
+
+def test_cuda_forward():
+    device = torch.device("cuda")
+    base_model = LeNet().to(device)
+    criterion = nn.CrossEntropyLoss()
+    
+    sto_model_cfg = [
+            ("normal", {"loc":1.0, "scale":0.5},  # the name of base distribution and parameters for that distribution
+                [("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
+                ("planar2d", 6, {"init_sigma":0.01})] # the second stack of flows (type, depth, params)
+            ),
+            (
+                "normal", {"loc":1.0, "scale":0.5}, 
+                [("affine", 1), 
+                 ("planar", 6)]
+            )
+            ]
+    sto_model = StoLeNet(sto_cfg=sto_model_cfg).to(device)
+    data = torch.randn(10, 1, 28, 28).to(device)
+    base_out = base_model(data)
+    sto_out = sto_model(data)
+    print("Test Pass: Forward pass runs on CUDA")
+    
 def test_model_initialization():
     sto_model_cfg = [
                 ("normal", {"loc":1.0, "scale":0.5},  # the name of base distribution and parameters for that distribution
@@ -323,6 +375,7 @@ def test_model_initialization():
     
     data = torch.randn(8,1,28,28)
     base_out3 = base_lenet(data)
+    test_out = sto_lenet(data) # see if the forward pass runs 
     sto_lenet.no_stochastic()
     sto_out3 = sto_lenet(data)
     cond3 = torch.allclose(base_out3, sto_out3)
@@ -333,6 +386,7 @@ def test_model_initialization():
         print("Test Fail: Migrated model doesn't share the deterministic part with base model")
     
 if __name__ == "__main__":
-    
     test_model_initialization()
+    test_cuda_forward()
+    test_optimizer()
     pass 
