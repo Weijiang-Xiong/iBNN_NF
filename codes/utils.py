@@ -5,19 +5,14 @@ import torch
 import torch.nn as nn
 import torch.distributions as D
 import torch.nn.functional as F 
+
+from models import StoModel
+
 EPS:float = np.finfo(np.float32).eps
 
 """ contains utility functions, like metrics and plotting helper
 """
 
-def classification_accuracy(prob, y):
-    """ compute classification accuracy given the probability of each class 
-        prob: size (n_samples, n_class)
-        y: size (n_samples)
-    """
-    _, idx = torch.max(prob, dim=1)
-    acc = torch.sum(idx == y)/y.numel()
-    return acc
 
 class ECELoss(nn.Module):
     """
@@ -73,7 +68,7 @@ class ECELoss(nn.Module):
             if prop_in_bin.item() > 0: # if no sample assigned in this bin, we get NaN from indexing
                 accuracy_in_bin = correct_samples[in_bin].float().mean()
                 avg_confidence_in_bin = confidences[in_bin].mean()
-                ece += torch.abs(avg_confidence_in_bin - accuracy_in_bin) * prop_in_bin
+                ece = ece + torch.abs(avg_confidence_in_bin - accuracy_in_bin) * prop_in_bin
                 self.acc_list[idx] = accuracy_in_bin.item()
                 self.conf_list[idx] = avg_confidence_in_bin.item()
                 self.sample_per[idx] = prop_in_bin.item()
@@ -95,7 +90,7 @@ class ECELoss(nn.Module):
         for idx, (bin_lower, bin_upper) in enumerate(zip(self.bin_lowers, self.bin_uppers)):
             in_bin = confidences.gt(bin_lower.item()) * confidences.le(bin_upper.item())
             num_in_bin, prop_in_bin = in_bin.sum(), in_bin.float().mean()
-            n, k = self.n_samples[idx], num_in_bin  
+            n, k = self.n_samples[idx], num_in_bin
             
             if prop_in_bin > 0.0:
                 weights = torch.tensor([n, k])/torch.tensor([n+k])
@@ -107,7 +102,7 @@ class ECELoss(nn.Module):
                 self.acc_list[idx] = torch.sum(torch.tensor([self.acc_list[idx], accuracy_in_bin])*weights).item()
                 self.conf_list[idx] = torch.sum(torch.tensor([self.conf_list[idx], avg_confidence_in_bin])*weights).item()
                 
-            self.n_samples[idx] += k
+            self.n_samples[idx] = self.n_samples[idx] + k
 
     def summarize_batch(self):
         self.sample_per = self.n_samples/torch.norm(self.n_samples, p=1)
@@ -139,6 +134,53 @@ class ECELoss(nn.Module):
         plt.legend()
         plt.show()
         
+def compute_accuracy(model, dataloader, device=None):
+    """ compute the classification accuracy of a model on a test set
+    """
+    if device==None:
+        device = next(model.parameters()).device
+    model.eval()
+    correct, total = 0, 0
+    with torch.no_grad():
+        for images, labels in dataloader:
+            images, labels = images.to(device), labels.to(device)
+            if isinstance(model, StoModel):
+                prob, _ = model.make_prediction(images)
+            else:
+                prob = model(images)
+            _, predicted = torch.max(prob.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+    return correct / total
+
+def compute_ece_loss(model, dataloader, device=None, n_bins=15):
+    """ compute the batched expected calibration loss 
+    """ 
+    if device==None:
+        device = next(model.parameters()).device
+    model.eval() 
+    batch_ece = ECELoss(n_bins=n_bins)
+    with torch.no_grad():
+        for images, labels in dataloader:
+            images, labels = images.to(device), labels.to(device)
+            if isinstance(model, StoModel):
+                probs, _ = model.make_prediction(images)
+            else:
+                probs = F.softmax(model(images), dim=-1) 
+            batch_ece.add_batch(probs, labels)
+    
+    return batch_ece.summarize_batch().item() 
+
+def classification_accuracy(prob, y):
+    """ compute classification accuracy given the probability of each class 
+        prob: size (n_samples, n_class)
+        y: size (n_samples)
+    """
+    _, idx = torch.max(prob, dim=1)
+    acc = torch.sum(idx == y)/y.numel()
+    return acc      
+
+
 def test_batched_ece():
     
     from models import LogisticRegression

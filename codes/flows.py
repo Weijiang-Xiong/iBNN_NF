@@ -5,7 +5,8 @@ import torch.distributions as D
 
 import numpy as np 
 from typing import List, Tuple, Dict, Set
-from utils import EPS
+
+EPS:float = np.finfo(np.float32).eps
 
 class PlanarFlow(nn.Module):
     """ modified based on https://github.com/kamenbliznashki/normalizing_flows/blob/master/planar_flow.py
@@ -90,7 +91,8 @@ class PlanarFlow2d(nn.Module):
         det = 1 + (1-F.tanh(wtz_plus_b)**2) * (self.w @ v_hat.t())
         
         log_abs_det_jacobian = torch.log(torch.abs(det) + EPS).squeeze()
-        sum_log_abs_det_jacobians += log_abs_det_jacobian
+        # might get an error if use += here (can not broadcast)
+        sum_log_abs_det_jacobians = sum_log_abs_det_jacobians + log_abs_det_jacobian
         
         return f_z, sum_log_abs_det_jacobians
 class ElementFlow(nn.Module):
@@ -120,7 +122,7 @@ class ElementFlow(nn.Module):
         
         f_z = self.act(z)
         log_abs_det_jacobian = torch.sum(torch.log(torch.abs(self.der(z))), dim=1)
-        sum_log_abs_det_jacobians += log_abs_det_jacobian
+        sum_log_abs_det_jacobians = sum_log_abs_det_jacobians + log_abs_det_jacobian
         return f_z, sum_log_abs_det_jacobians
     
 class NF_Block(nn.Module):

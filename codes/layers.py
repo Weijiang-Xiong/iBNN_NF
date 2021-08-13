@@ -63,8 +63,9 @@ class StoLinear(StoLayer):
         """ generate and transform stochastic samples, and calculate log_det_jacobian
             x : size (n_samples, n_features)
         """
+        device = x.device
         if self.is_stochastic:
-            mult_noise = self.base_dist.sample(x.shape)
+            mult_noise = self.base_dist.sample(x.shape).to(device)
             transformed_noise, log_det_jacobian = self.norm_flow(mult_noise)
             out = self.det_compo(x*transformed_noise)
             # store mean instead of the whole tensor
@@ -72,7 +73,7 @@ class StoLinear(StoLayer):
         else:
             out = self.det_compo(x)
 
-        return out
+        return out.to(device)
 
     def kl_div(self):
         return - self.mean_log_det_jacobian if self.is_stochastic else 0
@@ -101,15 +102,16 @@ class StoConv2d(StoLayer):
         """ generate and transform stochastic samples, and calculate log_det_jacobian
             x ([Tensor]): size (N, C, H, W)
         """
+        device = x.device   
         if self.is_stochastic:
-            mult_noise = self.base_dist.sample(x.shape)
+            mult_noise = self.base_dist.sample(x.shape).to(device)
             transformed_noise, log_det_jacobian = self.norm_flow(mult_noise)
             out = self.det_compo(x*transformed_noise)
             # store mean instead of the whole tensor
             self.mean_log_det_jacobian = log_det_jacobian.mean()
         else:
             out = self.det_compo(x)
-        return out
+        return out.to(device)
 
     def kl_div(self):
         return - self.mean_log_det_jacobian if self.is_stochastic else 0
