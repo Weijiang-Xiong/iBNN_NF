@@ -6,8 +6,6 @@ import torch.nn as nn
 import torch.distributions as D
 import torch.nn.functional as F 
 
-from models import StoModel
-
 EPS:float = np.finfo(np.float32).eps
 
 """ contains utility functions, like metrics and plotting helper
@@ -144,7 +142,8 @@ def compute_accuracy(model, dataloader, device=None):
     with torch.no_grad():
         for images, labels in dataloader:
             images, labels = images.to(device), labels.to(device)
-            if isinstance(model, StoModel):
+            # isinstance(model, StoModel) evaluates to false
+            if hasattr(model, "make_prediction"): 
                 prob, _ = model.make_prediction(images)
             else:
                 prob = model(images)
@@ -163,7 +162,7 @@ def compute_ece_loss(model, dataloader, device=None, n_bins=15):
     with torch.no_grad():
         for images, labels in dataloader:
             images, labels = images.to(device), labels.to(device)
-            if isinstance(model, StoModel):
+            if hasattr(model, "make_prediction"): 
                 probs, _ = model.make_prediction(images)
             else:
                 probs = F.softmax(model(images), dim=-1) 
@@ -179,6 +178,7 @@ def classification_accuracy(prob, y):
     _, idx = torch.max(prob, dim=1)
     acc = torch.sum(idx == y)/y.numel()
     return acc      
+
 
 
 def test_batched_ece():

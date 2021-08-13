@@ -24,7 +24,7 @@ class StoModel(nn.Module):
         # draw `n_samples` stochastic noise for each input and treat them as batches 
         x = x.repeat_interleave(n_samples, dim=0) 
         log_prob = self.forward(x) # don't expect the model to output normalized (log) probability
-        log_prob = log_prob.reshape(-1, n_samples, x.size(1)) # result size (batch_size, n_samples, n_classes)
+        log_prob = log_prob.reshape(-1, n_samples, log_prob.size(-1)) # result size (batch_size, n_samples, n_classes)
         probs = F.softmax(log_prob, dim=-1) # works even if the model outputs un-normalized log probability  
         # average over the samples, result size (batch_size, n_classes)
         variances, mean_prob = torch.var_mean(probs, dim=1, unbiased=False)
@@ -299,7 +299,6 @@ def test_optimizer():
 def test_cuda_forward():
     device = torch.device("cuda")
     base_model = LeNet().to(device)
-    criterion = nn.CrossEntropyLoss()
     
     sto_model_cfg = [
             ("normal", {"loc":1.0, "scale":0.5},  # the name of base distribution and parameters for that distribution
@@ -384,8 +383,41 @@ def test_model_initialization():
         print("Test Pass: Migrated model shares the deterministic part with base model")
     else:
         print("Test Fail: Migrated model doesn't share the deterministic part with base model")
+
+def test_acc():
+    from utils import compute_accuracy, compute_ece_loss
+    import torchvision
+    import torchvision.transforms as transforms
+    from torch.utils.data import DataLoader
+    data_dir = "./codes/data"
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,),(0.5,))
+    ])
+    device = torch.device("cuda")
+    trainset = torchvision.datasets.FashionMNIST(root=data_dir, train=True, transform=transform, download=False)
+    testset = torchvision.datasets.FashionMNIST(root=data_dir, train=False, transform=transform, download=False)
+    trainloader = DataLoader(trainset, batch_size=32, shuffle=True)
+    testloader = DataLoader(testset, batch_size=16, shuffle=False)
+    sto_model_cfg = [
+        ("normal", {"loc":1.0, "scale":0.5},  
+            [("affine", 1, {"learnable":True}), 
+            ("planar2d", 6, {"init_sigma":0.01})] # use planar2d for image data 
+        ),
+        (
+            "normal", {"loc":1.0, "scale":0.5}, 
+            [("affine", 1), 
+                ("planar", 6)]
+        )
+        ]
+    base_lenet = LeNet().to(device)
+    sto_lenet = StoLeNet(sto_model_cfg).to(device)
+    base_acc = compute_accuracy(base_lenet, testloader)
+    sto_acc = compute_accuracy(sto_lenet, testloader)
+    print("Test Pass: compute accuracy runs for StoModel")
     
 if __name__ == "__main__":
+    test_acc()
     test_model_initialization()
     test_cuda_forward()
     test_optimizer()
