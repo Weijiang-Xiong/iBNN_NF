@@ -161,47 +161,6 @@ class NF_Block(nn.Module):
 
         return transformed_samples, log_det_jacobian
     
-def test_2d_planar_flow():
 
-    data = torch.randn(4,3,8,8)
-    planar_1d = PlanarFlow(vec_len=3)
-    planar_2d = PlanarFlow2d(in_channel=3)
-    
-    # copy the weights from 1d flow to 2d flow 
-    planar_2d.w.data.copy_(planar_1d.w.data)
-    planar_2d.v.data.copy_(planar_1d.v.data)
-    planar_2d.b.data.copy_(planar_1d.b.data) 
-    
-    # use the 1d flow to iterate over height and weight dimension 
-    out_1d = torch.zeros_like(data)
-    ldj_1d = torch.zeros(4,8,8)
-    for i in range(data.shape[-2]):
-        for j in range(data.shape[-1]):
-            f_z_ij, ldj_ij = planar_1d(data[:,:,i,j])
-            out_1d[:,:,i,j] = f_z_ij
-            ldj_1d[:,i,j] = ldj_ij 
-    
-    # use 2d flow to transform the data from beginning and compare two results
-    out_2d, ldj_2d = planar_2d(data)
-    
-    if torch.allclose(out_1d, out_2d) and torch.allclose(ldj_1d, ldj_2d):
-        print("Test Pass: 2D flow is consistent with iteratively applying 1D flow")
-    else:
-        print("Test Fail: 2D flow is NOT consistent with iteratively applying 1D flow")
 
-def test_flow_cfg_format():
-    flow_cfg: List[Tuple] = [ # the first stack of flows (type, depth, params)
-                             ("affine", 1, {"learnable":True}), 
-                              # keys of params must be consistent with the arguments in the flow
-                             ("planar2d", 8, {"init_sigma":0.01})] 
-    norm_flow = NF_Block(vec_len=16, flow_cfg=flow_cfg)
-    print(norm_flow)
-
-if __name__ == "__main__":
-    test_2d_planar_flow()
-    test_flow_cfg_format()
-
-        
-        
-        
         

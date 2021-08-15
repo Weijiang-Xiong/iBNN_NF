@@ -15,8 +15,8 @@ class StoLayer(nn.Module):
     def __init__(self):
         super(StoLayer, self).__init__()
         self.det_compo = None
-        self.base_dist = None
-        self.norm_flow = None
+        self.base_dist:D.Distribution = None
+        self.norm_flow:NF_Block = None
         self.mean_log_det_jacobian = None  # to compute KL divergence
         # is_stochastic indicates if a proper stochastic part has been initialized
         # and it can be used to disable stochastic part (maybe useful?)
@@ -65,18 +65,26 @@ class StoLinear(StoLayer):
         """
         device = x.device
         if self.is_stochastic:
-            mult_noise = self.base_dist.sample(x.shape).to(device)
-            transformed_noise, log_det_jacobian = self.norm_flow(mult_noise)
-            out = self.det_compo(x*transformed_noise)
+            base_samples = self.base_dist.sample(x.shape).to(device)
+            transformed_samples, log_det_jacobian = self.norm_flow(base_samples)
+            out = self.det_compo(x*transformed_samples)
             # store mean instead of the whole tensor
             self.mean_log_det_jacobian = log_det_jacobian.mean()
+            # mean probability of base and transformed samples over the base distribution
+            # average over n_samples samples, sum over n_features (independent) elements in a sample vector 
+            self.mean_sample_prob = self.base_dist.log_prob(base_samples).sum(dim=1).mean()
+            self.mean_transf_prob = self.base_dist.log_prob(transformed_samples).sum(dim=1).mean() 
         else:
             out = self.det_compo(x)
 
         return out.to(device)
 
     def kl_div(self):
-        return - self.mean_log_det_jacobian if self.is_stochastic else 0
+        if self.is_stochastic:
+            kl = self.mean_sample_prob - self.mean_log_det_jacobian - self.mean_transf_prob
+        else:
+            kl = 0
+        return kl
 
     def migrate_from_det_layer(self, base_layer: nn.Linear):
         # copy the weight and bias from a deterministic Linear layer
@@ -104,92 +112,27 @@ class StoConv2d(StoLayer):
         """
         device = x.device   
         if self.is_stochastic:
-            mult_noise = self.base_dist.sample(x.shape).to(device)
-            transformed_noise, log_det_jacobian = self.norm_flow(mult_noise)
-            out = self.det_compo(x*transformed_noise)
+            base_samples = self.base_dist.sample(x.shape).to(device)
+            transformed_samples, log_det_jacobian = self.norm_flow(base_samples)
+            out = self.det_compo(x*transformed_samples)
             # store mean instead of the whole tensor
             self.mean_log_det_jacobian = log_det_jacobian.mean()
+            # average over different samples
+            # sum over elements in a sample vector of a random variable
+            self.mean_sample_prob = self.base_dist.log_prob(base_samples).sum(dim=1).mean()
+            self.mean_transf_prob = self.base_dist.log_prob(transformed_samples).sum(dim=1).mean() 
         else:
             out = self.det_compo(x)
         return out.to(device)
 
     def kl_div(self):
-        return - self.mean_log_det_jacobian if self.is_stochastic else 0
+        if self.is_stochastic:
+            kl = self.mean_sample_prob - self.mean_log_det_jacobian - self.mean_transf_prob
+        else:
+            kl = 0
+        return kl
 
     def migrate_from_det_layer(self, det_layer: nn.Conv2d):
         if isinstance(det_layer, self.__class__.DET_CLASS):
             self.det_compo.weight.data.copy_(det_layer.weight.data)
             self.det_compo.bias.data.copy_(det_layer.bias.data)
-
-
-def test_linear_migration():
-
-    # type and parameters of the distribution,
-    # TODO parse configuration of the flow
-    dist_name = "normal"
-    dist_params = {"loc": 0, "scale": 1}
-    flow_cfg = [("affine", 1, {"learnable": True}),  # the first stack of flows (type, depth, params)
-                ("planar2d", 8, {"init_sigma": 0.01})]
-
-    base_layer = nn.Linear(2, 2)
-    sto_layer = StoLinear(2, 2, dist_name=dist_name, dist_params=dist_params, flow_cfg=flow_cfg)
-    sto_layer.migrate_from_det_layer(base_layer)
-    print(list(base_layer.named_parameters()))
-    print(list(sto_layer.det_compo.named_parameters()))
-
-    base_weight = base_layer.weight.data
-    base_bias = base_layer.bias.data
-
-    sto_weight = sto_layer.det_compo.weight.data
-    sto_bias = sto_layer.det_compo.bias.data
-
-    # disable the stochastic part
-    sto_layer.is_stochastic = False
-    in_data = torch.randn(5, 2)
-    base_out = base_layer(in_data)
-    sto_out = sto_layer(in_data)
-
-    cond1 = torch.allclose(base_weight, sto_weight)
-    cond2 = torch.allclose(base_bias, sto_bias)
-    cond3 = torch.allclose(base_out, sto_out)
-
-    if all([cond1, cond2, cond3]):
-        print("Linear Layer: Weight Migration Successful")
-    else:
-        print("Linear Layer: Weight Migration Failed")
-
-def test_conv_migration():
-    dist_name = "normal"
-    dist_params = {"loc": 0, "scale": 1}
-    flow_cfg = [("affine", 1, {"learnable": True}),  # the first stack of flows (type, depth, params)
-                ("planar2d", 8, {"init_sigma": 0.01})]
-
-    base_layer = nn.Conv2d(3,4,2)
-    sto_layer = StoConv2d(3,4,2, dist_name=dist_name, dist_params=dist_params, flow_cfg=flow_cfg)
-    sto_layer.migrate_from_det_layer(base_layer)
-    print(list(base_layer.named_parameters()))
-    print(list(sto_layer.det_compo.named_parameters()))
-    
-    base_weight = base_layer.weight.data
-    base_bias = base_layer.bias.data
-
-    sto_weight = sto_layer.det_compo.weight.data
-    sto_bias = sto_layer.det_compo.bias.data
-    
-    sto_layer.is_stochastic = False
-    in_data = torch.randn(5, 3, 10, 10)
-    base_out = base_layer(in_data)
-    sto_out = sto_layer(in_data)
-    
-    cond1 = torch.allclose(base_weight, sto_weight)
-    cond2 = torch.allclose(base_bias, sto_bias)
-    cond3 = torch.allclose(base_out, sto_out)
-    
-    if all([cond1, cond2, cond3]):
-        print("StoConv2d: Weight Migration Successful")
-    else:
-        print("StoConv2d: Weight Migration Failed")
-if __name__ == "__main__":
-    test_linear_migration()
-    test_conv_migration()
-    pass

@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.distributions as D
 import torch.nn.functional as F 
 
+from models import StoModel
 EPS:float = np.finfo(np.float32).eps
 
 """ contains utility functions, like metrics and plotting helper
@@ -142,8 +143,7 @@ def compute_accuracy(model, dataloader, device=None):
     with torch.no_grad():
         for images, labels in dataloader:
             images, labels = images.to(device), labels.to(device)
-            # isinstance(model, StoModel) evaluates to false
-            if hasattr(model, "make_prediction"): 
+            if isinstance(model, StoModel):
                 prob, _ = model.make_prediction(images)
             else:
                 prob = model(images)
@@ -162,7 +162,7 @@ def compute_ece_loss(model, dataloader, device=None, n_bins=15):
     with torch.no_grad():
         for images, labels in dataloader:
             images, labels = images.to(device), labels.to(device)
-            if hasattr(model, "make_prediction"): 
+            if isinstance(model, StoModel):
                 probs, _ = model.make_prediction(images)
             else:
                 probs = F.softmax(model(images), dim=-1) 
@@ -178,44 +178,3 @@ def classification_accuracy(prob, y):
     _, idx = torch.max(prob, dim=1)
     acc = torch.sum(idx == y)/y.numel()
     return acc      
-
-
-
-def test_batched_ece():
-    
-    from models import LogisticRegression
-    
-    full_ece = ECELoss(n_bins=15)
-    log_reg = LogisticRegression(2, 2, True)
-    data = torch.randn(1000, 2)
-    label = torch.randint(0,2,(1000,))
-    pred_prob = log_reg(data).exp()
-    full_loss = full_ece.forward(pred_prob, label)
-    
-    list_batch_pred = []
-    batch_ece = ECELoss(n_bins=15)
-    batch_size = 100
-    for idx in range(10):
-        batch_X = data[idx*batch_size:(idx+1)*batch_size, :]
-        batch_Y = label[idx*batch_size:(idx+1)*batch_size]
-        b_pred_prob = log_reg.forward(batch_X).exp()
-        list_batch_pred.append(b_pred_prob)
-        batch_ece.add_batch(b_pred_prob, batch_Y)
-    cat_batch_result = torch.cat(list_batch_pred, dim=0)
-    batch_loss = batch_ece.summarize_batch()
-    
-    conditions = [] 
-    conditions.append(torch.allclose(cat_batch_result, pred_prob))
-    conditions.append(torch.allclose(batch_ece.acc_list, full_ece.acc_list))
-    conditions.append(torch.allclose(batch_ece.conf_list, full_ece.conf_list))
-    conditions.append(torch.allclose(batch_ece.sample_per, full_ece.sample_per))
-    conditions.append(torch.allclose(batch_loss, full_loss))
-    
-    if all(conditions):
-        print("Test Pass: Batched ECE loss is equivalent to full ECE")
-    else:
-        print("Test Fail: Batched ECE loss is NOT equivalent to full ECE")
-    
-    
-if __name__ == "__main__":
-    test_batched_ece()
