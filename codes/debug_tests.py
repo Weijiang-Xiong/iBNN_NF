@@ -187,16 +187,15 @@ def test_acc():
     from utils import compute_accuracy, compute_ece_loss
     import torchvision
     import torchvision.transforms as transforms
-    from torch.utils.data import DataLoader
+    from torch.utils.data import DataLoader, Subset
     data_dir = "./codes/data"
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.5,),(0.5,))
     ])
     device = torch.device("cuda")
-    trainset = torchvision.datasets.FashionMNIST(root=data_dir, train=True, transform=transform, download=False)
     testset = torchvision.datasets.FashionMNIST(root=data_dir, train=False, transform=transform, download=False)
-    trainloader = DataLoader(trainset, batch_size=32, shuffle=True)
+    testset = Subset(testset, range(200)) # use a really small part of data to debug
     testloader = DataLoader(testset, batch_size=16, shuffle=False)
     sto_model_cfg = [
         ("normal", {"loc":1.0, "scale":0.5},  
