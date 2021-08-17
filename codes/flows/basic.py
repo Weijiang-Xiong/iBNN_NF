@@ -126,7 +126,8 @@ class ElementFlow(nn.Module):
         return f_z, sum_log_abs_det_jacobians
     
 class NF_Block(nn.Module):
-
+    """ a container class for a series of flows in a stochastic layer 
+    """
     flow_types = {
         "affine": AffineTransform,
         "planar": PlanarFlow,

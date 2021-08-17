@@ -6,6 +6,8 @@ import torch.nn.functional as F
 from layers import StoLayer, StoLinear, StoConv2d
 from typing import List, Tuple, Dict, Set
 
+__all__ = ["StoModel", "LogisticRegression", "StoLogisticRegression", "MLP", "StoMLP", "LeNet", "StoLeNet"]
+
 class StoModel(nn.Module):
     
     def __init__(self):
@@ -84,7 +86,6 @@ class StoModel(nn.Module):
         for layer in self.sto_layers:
             layer.is_stochastic = True
       
-      
 class LogisticRegression(nn.Module):
     
     """ a logistic regression model for demonstration
@@ -93,7 +94,7 @@ class LogisticRegression(nn.Module):
     def __init__(self, in_features:int, out_features:int, bias:bool=True):
         super(LogisticRegression, self).__init__()
         self.lin_layer = nn.Linear(in_features, out_features, bias)
-        self.out_layer = nn.LogSoftmax()
+        self.out_layer = nn.LogSoftmax(dim=-1)
 
     def forward(self, x):
         """ calculate log probability 
@@ -134,7 +135,7 @@ class StoLogisticRegression(StoModel):
         """
         super(StoLogisticRegression, self).__init__()
         self.lin_layer = StoLinear(in_features, out_features, bias)
-        self.out_layer = nn.LogSoftmax()
+        self.out_layer = nn.LogSoftmax(dim=-1)
         self.sto_layers = [m for m in self.modules() if isinstance(m, StoLayer)]
         self.build_all_flows(sto_cfg=sto_cfg)
 
@@ -177,7 +178,7 @@ class MLP(nn.Module):
         self.fc2 = nn.Linear(hidden_features, out_features, bias)
     
     def forward(self, x):
-        return F.log_softmax(self.fc2(F.sigmoid(self.fc1(x))), dim=-1)
+        return F.log_softmax(self.fc2(torch.sigmoid(self.fc1(x))), dim=-1)
     
 class StoMLP(StoModel):
     
@@ -191,13 +192,14 @@ class StoMLP(StoModel):
         self.build_all_flows(sto_cfg)
 
     def forward(self, x):
-        return F.log_softmax(self.fc2(F.sigmoid(self.fc1(x))), dim=-1)
+        return F.log_softmax(self.fc2(torch.sigmoid(self.fc1(x))), dim=-1)
             
     def migrate_from_det_model(self, det_model:MLP):
         det_class = self.DET_MODEL_CLASS
         if isinstance(det_model, det_class):
             self.fc1.migrate_from_det_layer(det_model.fc1)
             self.fc2.migrate_from_det_layer(det_model.fc2)
+
 class LeNet(nn.Module):
     
     def __init__(self):

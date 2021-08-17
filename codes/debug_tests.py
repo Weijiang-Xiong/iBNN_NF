@@ -6,7 +6,7 @@ from layers import StoLayer, StoLinear, StoConv2d
 from models import StoModel, MLP, StoMLP, LeNet, StoLeNet, LogisticRegression, StoLogisticRegression
 from flows import NF_Block, PlanarFlow, AffineTransform, PlanarFlow2d, ElementFlow
 from utils import ECELoss
-
+ 
 def test_linear_migration():
 
     # type and parameters of the distribution,
@@ -18,8 +18,8 @@ def test_linear_migration():
     base_layer = nn.Linear(2, 2)
     sto_layer = StoLinear(2, 2, dist_name=dist_name, dist_params=dist_params, flow_cfg=flow_cfg)
     sto_layer.migrate_from_det_layer(base_layer)
-    print(list(base_layer.named_parameters()))
-    print(list(sto_layer.det_compo.named_parameters()))
+    # print(list(base_layer.named_parameters()))
+    # print(list(sto_layer.det_compo.named_parameters()))
 
     base_weight = base_layer.weight.data
     base_bias = base_layer.bias.data
@@ -40,7 +40,7 @@ def test_linear_migration():
     if all([cond1, cond2, cond3]):
         print("Linear Layer: Weight Migration Successful")
     else:
-        print("Linear Layer: Weight Migration Failed")
+        raise ValueError("Linear Layer: Weight Migration Failed")
 
 def test_conv_migration():
     dist_name = "normal"
@@ -51,8 +51,8 @@ def test_conv_migration():
     base_layer = nn.Conv2d(3,4,2)
     sto_layer = StoConv2d(3,4,2, dist_name=dist_name, dist_params=dist_params, flow_cfg=flow_cfg)
     sto_layer.migrate_from_det_layer(base_layer)
-    print(list(base_layer.named_parameters()))
-    print(list(sto_layer.det_compo.named_parameters()))
+    # print(list(base_layer.named_parameters()))
+    # print(list(sto_layer.det_compo.named_parameters()))
     
     base_weight = base_layer.weight.data
     base_bias = base_layer.bias.data
@@ -72,7 +72,7 @@ def test_conv_migration():
     if all([cond1, cond2, cond3]):
         print("StoConv2d: Weight Migration Successful")
     else:
-        print("StoConv2d: Weight Migration Failed")
+        raise ValueError("StoConv2d: Weight Migration Failed")
         
 
 def test_optimizer():
@@ -181,7 +181,7 @@ def test_model_initialization():
     if all([cond1, cond2, cond3]):
         print("Test Pass: Migrated model shares the deterministic part with base model")
     else:
-        print("Test Fail: Migrated model doesn't share the deterministic part with base model")
+        raise ValueError("Test Fail: Migrated model doesn't share the deterministic part with base model")
 
 def test_acc():
     from utils import compute_accuracy, compute_ece_loss
@@ -241,7 +241,7 @@ def test_2d_planar_flow():
     if torch.allclose(out_1d, out_2d) and torch.allclose(ldj_1d, ldj_2d):
         print("Test Pass: 2D flow is consistent with iteratively applying 1D flow")
     else:
-        print("Test Fail: 2D flow is NOT consistent with iteratively applying 1D flow")
+        raise ValueError("Test Fail: 2D flow is NOT consistent with iteratively applying 1D flow")
 
 def test_flow_cfg_format():
     flow_cfg: List[Tuple] = [ # the first stack of flows (type, depth, params)
@@ -284,9 +284,11 @@ def test_batched_ece():
     if all(conditions):
         print("Test Pass: Batched ECE loss is equivalent to full ECE")
     else:
-        print("Test Fail: Batched ECE loss is NOT equivalent to full ECE") 
+        raise ValueError("Test Fail: Batched ECE loss is NOT equivalent to full ECE") 
     
 if __name__ == "__main__":
+    import warnings
+    warnings.filterwarnings("ignore")
     test_2d_planar_flow()
     test_flow_cfg_format()
     test_linear_migration()
