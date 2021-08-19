@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn 
 
 from typing import List, Tuple, Dict, Set
-from layers import StoLayer, StoLinear, StoConv2d
+from models.layers import StoLayer, StoLinear, StoConv2d
 from models import StoModel, MLP, StoMLP, LeNet, StoLeNet, LogisticRegression, StoLogisticRegression
 from flows import NF_Block, PlanarFlow, AffineTransform, PlanarFlow2d, ElementFlow
 from utils import ECELoss
@@ -73,7 +73,6 @@ def test_conv_migration():
         print("StoConv2d: Weight Migration Successful")
     else:
         raise ValueError("StoConv2d: Weight Migration Failed")
-        
 
 def test_optimizer():
     sto_model_cfg = [
@@ -284,17 +283,44 @@ def test_batched_ece():
         print("Test Pass: Batched ECE loss is equivalent to full ECE")
     else:
         raise ValueError("Test Fail: Batched ECE loss is NOT equivalent to full ECE") 
+
+def test_step_of_flow():
+    from flows.glow import FlowStep
+    keepdim = True
+    fs = FlowStep(6, 10, keepdim=keepdim)
+    data = torch.randn(10, 6, 18, 18)
+    transformed, logdet = fs.forward(data)
+    cond1 = (list(logdet.shape) == [10, 18, 18])
+    keepdim = False
+    fs1 = FlowStep(6, 10, keepdim=keepdim)
+    data = torch.randn(10, 6, 18, 18)
+    transformed, logdet = fs1.forward(data)
+    cond2 = (list(logdet.shape) == [10])
+    pass 
     
 if __name__ == "__main__":
+    # disable warnings to see the output more clearly
     import warnings
     warnings.filterwarnings("ignore")
-    test_2d_planar_flow()
+    
+    # tests for flow 
     test_flow_cfg_format()
+    test_2d_planar_flow()
+    test_step_of_flow()
+    
+    # tests for layers
     test_linear_migration()
     test_conv_migration()
-    test_acc()
+    
+    # tests for models 
     test_model_initialization()
     test_cuda_forward()
-    test_optimizer()
+    
+    # tests for utilities
+    test_acc()
     test_batched_ece()
+    
+    # tests for training process
+    test_optimizer()
+    
     pass

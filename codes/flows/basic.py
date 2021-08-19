@@ -57,12 +57,13 @@ class AffineTransform(nn.Module):
     
 class PlanarFlow2d(nn.Module):
     
-    def __init__(self, in_channel, init_sigma=0.01):
+    def __init__(self, in_channel, init_sigma=0.01, keepdim=True):
         super().__init__()
         self.in_channel = in_channel
         self.v = nn.Parameter(torch.randn(1, in_channel).normal_(0, init_sigma))
         self.w = nn.Parameter(torch.randn(1, in_channel).normal_(0, init_sigma))
         self.b = nn.Parameter(torch.randn(1).fill_(0))
+        self.keepdim = keepdim
         
     def forward(self, x, normalize_u=True):
         """
@@ -93,7 +94,8 @@ class PlanarFlow2d(nn.Module):
         log_abs_det_jacobian = torch.log(torch.abs(det) + EPS).squeeze()
         # might get an error if use += here (can not broadcast)
         sum_log_abs_det_jacobians = sum_log_abs_det_jacobians + log_abs_det_jacobian
-        
+        if not self.keepdim:
+            sum_log_abs_det_jacobians = sum_log_abs_det_jacobians * z.shape[2] * z.shape[3]
         return f_z, sum_log_abs_det_jacobians
 class ElementFlow(nn.Module):
     """ apply element wise transformation to the samples, similar to activation 

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.distributions as D 
 import torch.nn.functional as F 
 
-from layers import StoLayer, StoLinear, StoConv2d
+from .layers import StoLayer, StoLinear, StoConv2d
 from typing import List, Tuple, Dict, Set
 
 __all__ = ["StoModel", "LogisticRegression", "StoLogisticRegression", "MLP", "StoMLP", "LeNet", "StoLeNet"]
@@ -85,6 +85,16 @@ class StoModel(nn.Module):
     def stochastic(self):
         for layer in self.sto_layers:
             layer.is_stochastic = True
+    
+    def turn_to_stochastic(self, layer_name, sto_cfg):
+        """ turn a deterministic layer into a stochastic layer
+        
+            layer_name: the name of that layer, can be used to get the layer object with `getattr(self, layer_name)`
+            
+            sto_cfg: the configuration of the base distribution along with the flow configuration
+        """
+        pass 
+    
       
 class LogisticRegression(nn.Module):
     
