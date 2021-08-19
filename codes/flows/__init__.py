@@ -7,15 +7,28 @@ import numpy as np
 from typing import List, Tuple, Dict, Set
 
 from .basic import AffineTransform, PlanarFlow, PlanarFlow2d, ElementFlow
-
+from .glow import FlowStep, Invertible1x1Conv
 class NF_Block(nn.Module):
     """ a container class for a series of flows in a stochastic layer 
+    
+        supported flow types 
+            `flow_types = {
+            "affine": AffineTransform, 
+            "planar": PlanarFlow,
+            "planar2d": PlanarFlow2d,
+            "element": ElementFlow,
+            "flowstep": FlowStep,
+            "invconv": Invertible1x1Conv}`
     """
+    
     flow_types = {
         "affine": AffineTransform,
         "planar": PlanarFlow,
         "planar2d": PlanarFlow2d,
         "element": ElementFlow,
+        # cannot apply flowstep directly on grey scale images because of channelwise affine coupling
+        "flowstep": FlowStep, 
+        "invconv": Invertible1x1Conv
     }
     
     def __init__(self, vec_len=2, flow_cfg=None):
@@ -40,7 +53,10 @@ class NF_Block(nn.Module):
         # print("")
     
     def forward(self, samples):
+        sum_log_det_jacobian = torch.tensor([0], device=samples.device)
+        for m in self.forward_block:
+            samples, log_det_jacobian = m(samples)
+            # might get an error if use += here (can not broadcast)
+            sum_log_det_jacobian = sum_log_det_jacobian + log_det_jacobian
 
-        transformed_samples, log_det_jacobian = self.forward_block(samples)
-
-        return transformed_samples, log_det_jacobian
+        return samples, sum_log_det_jacobian

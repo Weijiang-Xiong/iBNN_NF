@@ -241,12 +241,14 @@ def test_2d_planar_flow():
     else:
         raise ValueError("Test Fail: 2D flow is NOT consistent with iteratively applying 1D flow")
 
-def test_flow_cfg_format():
+def test_flow_forward():
     flow_cfg: List[Tuple] = [ # the first stack of flows (type, depth, params)
                              ("affine", 1, {"learnable":True}), 
                               # keys of params must be consistent with the arguments in the flow
-                             ("planar2d", 8, {"init_sigma":0.01})] 
+                             ("planar2d", 8, {"init_sigma":0.01}),
+                             ("flowstep", 2, {"width":6,"keepdim":True})] 
     norm_flow = NF_Block(vec_len=16, flow_cfg=flow_cfg)
+    out = norm_flow(torch.randn(8, 16, 7, 7))
     print(norm_flow)
     
 def test_batched_ece():
@@ -305,13 +307,13 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore")
     
     # tests for flow 
-    test_flow_cfg_format()
-    test_2d_planar_flow()
-    test_step_of_flow()
+    # test_flow_forward()
+    # test_2d_planar_flow()
+    # test_step_of_flow()
     
     # tests for layers
-    test_linear_migration()
-    test_conv_migration()
+    # test_linear_migration()
+    # test_conv_migration()
     
     # tests for models 
     test_model_initialization()
