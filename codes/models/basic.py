@@ -244,11 +244,11 @@ class StoLeNet(StoModel):
     
     def __init__(self, sto_cfg:List[Tuple]):
         super().__init__()
-        self.conv1 = nn.Conv2d(1, 6, 5)
+        self.conv1 = StoConv2d(1, 6, 5)
         self.conv2 = StoConv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16*4*4, 120)
+        self.fc1 = StoLinear(16*4*4, 120)
         self.fc2 = StoLinear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
+        self.fc3 = StoLinear(84, 10)
         self.sto_layers = [m for m in self.modules() if isinstance(m, StoLayer)]
         self.build_all_flows(sto_cfg)
             

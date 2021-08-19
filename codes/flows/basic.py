@@ -59,6 +59,12 @@ class AffineTransform(nn.Module):
 class PlanarFlow2d(nn.Module):
     
     def __init__(self, in_channel, init_sigma=0.01, keepdim=True):
+        """
+        Args:
+            in_channel ([int]): [number of input channel]
+            init_sigma (float, optional): [ standard deviation used to initialize weights]. Defaults to 0.01.
+            keepdim (bool, optional): [Suppose the input feature map has shape (N, C, H, W), if set to true, the flow will regard the tensor as N*H*W (batch and image dimensions) independent length-C vectors. If false, the image dimensions (H, W) will be counted into a vector, resulting in N independent vectors with size C*H*W]. Defaults to True.
+        """
         super().__init__()
         self.in_channel = in_channel
         self.v = nn.Parameter(torch.randn(1, in_channel).normal_(0, init_sigma))
@@ -108,7 +114,12 @@ class ElementFlow(nn.Module):
         "tanh": lambda x: 1 - torch.tanh(x)**2
     }
     
-    def __init__(self, act="tanh"):
+    def __init__(self, in_channel=None, act="tanh"):
+        """
+        Args:
+            in_channel : [input channel, doesn't really needed for element-wise flow, put it here for consistent interface]. Defaults to None.
+            act : [type of activation function]. Defaults to "tanh".
+        """
         super().__init__()
         self.act = ElementFlow.act_fun.get(act, "tanh")
         self.der = ElementFlow.der_fun.get(act, "tanh")

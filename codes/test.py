@@ -30,7 +30,7 @@ transform = transforms.Compose([
 
 trainset = torchvision.datasets.FashionMNIST(root=data_dir, train=True, transform=transform, download=False)
 testset = torchvision.datasets.FashionMNIST(root=data_dir, train=False, transform=transform, download=False)
-trainloader = DataLoader(trainset, batch_size=32, shuffle=True)
+trainloader = DataLoader(trainset, batch_size=128, shuffle=True)
 testloader = DataLoader(testset, batch_size=16, shuffle=False)
 class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal',
                 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
@@ -71,19 +71,25 @@ if train_deterministic:
 # == migrate from base model, finetune and train flow = #
 # ===================================================== #
 
-sto_model_cfg = [
-            ("normal", {"loc":1.0, "scale":0.5},  # the name of base distribution and parameters for that distribution
-                [("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
-                ("planar2d", 2, {"init_sigma":0.01}), # the second stack of flows (type, depth, params)
-                ("flowstep", 2, {"width":6,"keepdim":True}),
-                ("planar2d", 2, {"init_sigma":0.01})] 
-            ),
-            (
-                "normal", {"loc":1.0, "scale":0.5}, 
-                [("affine", 1), 
-                 ("planar", 6)]
-            )
-            ]
+# parameters for base distribution 
+NormalParams = lambda scale: {"loc":1.0, "scale":scale}
+# flow configurations, List of tuple (type, depth, params)
+AffineLayer = [("affine", 1, {"learnable":True})]
+GlowStep =  lambda depth, width:[
+            ("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
+            ("planar2d", 2, {"init_sigma":0.01}),# the second stack of flows (type, depth, params)
+            ("flowstep", depth, {"width":width,"keepdim":True}),
+            ("element", 1, {"act":"tanh"})] 
+Planar1d = lambda depth: [("affine", 1), 
+            ("planar", depth),
+            ("element", 1, {"act":"tanh"})]
+# stochastic part for a layer, base distribution name, distribution parameters, flow config 
+NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
+NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 16))
+NormalPlanar1d = ("normal", NormalParams(0.5), Planar1d(2))
+# flow config for all layers in the moel 
+sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]
+
 sto_model = StoLeNet(sto_cfg=sto_model_cfg).to(device)
 
 if train_deterministic:
@@ -103,8 +109,10 @@ for epoch in range(num_epochs):
     for img, label in trainloader:
         img, label = img.to(device), label.to(device)
         pred = sto_model(img)
+        if np.isnan(pred.cpu().detach()[0,0]):
+            pred = sto_model(img)
         log_likelihood, kl = sto_model.calc_loss(pred, label)
-        loss = -log_likelihood + kl 
+        loss = -log_likelihood + kl / len(trainloader.dataset)
         
         optimizer.zero_grad()
         loss.backward()
@@ -112,7 +120,7 @@ for epoch in range(num_epochs):
         
         batch_loss.append(loss.item())
         batch_ll.append(log_likelihood.item()) 
-        batch_kl.append(kl.item())
+        batch_kl.append(kl.item()/ len(trainloader.dataset))
     avg = lambda l: sum(l)/len(l)
     avg_loss, avg_ll, avg_kl = avg(batch_loss), avg(batch_ll), avg(batch_kl)
     sto_acc = compute_accuracy(sto_model, testloader, device=device)
