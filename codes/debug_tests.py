@@ -38,7 +38,7 @@ def test_linear_migration():
     cond3 = torch.allclose(base_out, sto_out)
 
     if all([cond1, cond2, cond3]):
-        print("Linear Layer: Weight Migration Successful")
+        print("Test Pass: Linear Layer Weight Migration Successful")
     else:
         raise ValueError("Linear Layer: Weight Migration Failed")
 
@@ -70,7 +70,7 @@ def test_conv_migration():
     cond3 = torch.allclose(base_out, sto_out)
     
     if all([cond1, cond2, cond3]):
-        print("StoConv2d: Weight Migration Successful")
+        print("Test Pass: StoConv2d Weight Migration Successful")
     else:
         raise ValueError("StoConv2d: Weight Migration Failed")
 
@@ -296,7 +296,8 @@ def test_step_of_flow():
     data = torch.randn(10, 6, 18, 18)
     transformed, logdet = fs1.forward(data)
     cond2 = (list(logdet.shape) == [10])
-    pass 
+    if cond1 and cond2:
+        print("Test Pass: keepdim Flag works for Step of Flow") 
     
 if __name__ == "__main__":
     # disable warnings to see the output more clearly
