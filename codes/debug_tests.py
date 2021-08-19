@@ -6,7 +6,27 @@ from models.layers import StoLayer, StoLinear, StoConv2d
 from models import StoModel, MLP, StoMLP, LeNet, StoLeNet, LogisticRegression, StoLogisticRegression
 from flows import NF_Block, PlanarFlow, AffineTransform, PlanarFlow2d, ElementFlow
 from utils import ECELoss
- 
+
+def get_flow_block_cfg():
+    # parameters for base distribution 
+    NormalParams = lambda scale: {"loc":1.0, "scale":scale}
+    # flow configurations, List of tuple (type, depth, params)
+    AffineLayer = [("affine", 1, {"learnable":True})]
+    GlowStep =  lambda depth, width:[
+                ("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
+                ("planar2d", 2, {"init_sigma":0.01}),# the second stack of flows (type, depth, params)
+                ("flowstep", depth, {"width":width,"keepdim":True}),
+                ("element", 1, {"act":"tanh"})] 
+    Planar1d = lambda depth: [("affine", 1), 
+                ("planar", depth),
+                ("element", 1, {"act":"tanh"})]
+    # stochastic part for a layer, base distribution name, distribution parameters, flow config 
+    NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
+    NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 10))
+    NormalPlanar1d = ("normal", NormalParams(0.5), Planar1d(2))
+    
+    return NormalParams, AffineLayer, GlowStep, Planar1d, NormalAffine, NormalGlowStep, NormalPlanar1d
+
 def test_linear_migration():
 
     # type and parameters of the distribution,
@@ -72,25 +92,11 @@ def test_conv_migration():
     if all([cond1, cond2, cond3]):
         print("Test Pass: StoConv2d Weight Migration Successful")
     else:
-        raise ValueError("StoConv2d: Weight Migration Failed")
+        raise ValueError("Test Failed: StoConv2d Weight Migration Failed")
 
 def test_optimizer():
-    # parameters for base distribution 
-    NormalParams = lambda scale: {"loc":1.0, "scale":scale}
-    # flow configurations, List of tuple (type, depth, params)
-    AffineLayer = [("affine", 1, {"learnable":True})]
-    GlowStep =  lambda depth, width:[
-                ("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
-                ("planar2d", 2, {"init_sigma":0.01}),# the second stack of flows (type, depth, params)
-                ("flowstep", depth, {"width":width,"keepdim":True}),
-                ("element", 1, {"act":"tanh"})] 
-    Planar1d = lambda depth: [("affine", 1), 
-                ("planar", depth),
-                ("element", 1, {"act":"tanh"})]
-    # stochastic part for a layer, base distribution name, distribution parameters, flow config 
-    NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
-    NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 10))
-    NormalPlanar1d = ("normal", NormalParams(0.5), Planar1d(2))
+    cfgs = get_flow_block_cfg()
+    _, _, _, _, NormalAffine, NormalGlowStep, NormalPlanar1d = cfgs
     # flow config for all layers in the moel 
     sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]
     sto_model = StoLeNet(sto_cfg=sto_model_cfg)
@@ -105,22 +111,8 @@ def test_cuda_forward():
     device = torch.device("cuda")
     base_model = LeNet().to(device)
     
-    # parameters for base distribution 
-    NormalParams = lambda scale: {"loc":1.0, "scale":scale}
-    # flow configurations, List of tuple (type, depth, params)
-    AffineLayer = [("affine", 1, {"learnable":True})]
-    GlowStep =  lambda depth, width:[
-                ("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
-                ("planar2d", 2, {"init_sigma":0.01}),# the second stack of flows (type, depth, params)
-                ("flowstep", depth, {"width":width,"keepdim":True}),
-                ("element", 1, {"act":"tanh"})] 
-    Planar1d = lambda depth: [("affine", 1), 
-                ("planar", depth),
-                ("element", 1, {"act":"tanh"})]
-    # stochastic part for a layer, base distribution name, distribution parameters, flow config 
-    NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
-    NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 10))
-    NormalPlanar1d = ("normal", NormalParams(0.5), Planar1d(2))
+    cfgs = get_flow_block_cfg()
+    _, _, _, _, NormalAffine, NormalGlowStep, NormalPlanar1d = cfgs
     # flow config for all layers in the moel 
     sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]
     sto_model = StoLeNet(sto_cfg=sto_model_cfg).to(device)
@@ -169,22 +161,8 @@ def test_model_initialization():
     sto_out2 = sto_mlp(data)
     cond2 = torch.allclose(base_out2, sto_out2)
     
-    # parameters for base distribution 
-    NormalParams = lambda scale: {"loc":1.0, "scale":scale}
-    # flow configurations, List of tuple (type, depth, params)
-    AffineLayer = [("affine", 1, {"learnable":True})]
-    GlowStep =  lambda depth, width:[
-                ("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
-                ("planar2d", 2, {"init_sigma":0.01}),# the second stack of flows (type, depth, params)
-                ("flowstep", depth, {"width":width,"keepdim":True}),
-                ("element", 1, {"act":"tanh"})] 
-    Planar1d = lambda depth: [("affine", 1), 
-                ("planar", depth),
-                ("element", 1, {"act":"tanh"})]
-    # stochastic part for a layer, base distribution name, distribution parameters, flow config 
-    NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
-    NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 10))
-    NormalPlanar1d = ("normal", NormalParams(0.5), Planar1d(2))
+    cfgs = get_flow_block_cfg()
+    _, _, _, _, NormalAffine, NormalGlowStep, NormalPlanar1d = cfgs
     # flow config for all layers in the moel 
     sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]
     base_lenet = LeNet()
@@ -218,22 +196,8 @@ def test_acc():
     testset = Subset(testset, range(200)) # use a really small part of data to debug
     testloader = DataLoader(testset, batch_size=16, shuffle=False)
     
-    # parameters for base distribution 
-    NormalParams = lambda scale: {"loc":1.0, "scale":scale}
-    # flow configurations, List of tuple (type, depth, params)
-    AffineLayer = [("affine", 1, {"learnable":True})]
-    GlowStep =  lambda depth, width:[
-                ("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
-                ("planar2d", 2, {"init_sigma":0.01}),# the second stack of flows (type, depth, params)
-                ("flowstep", depth, {"width":width,"keepdim":True}),
-                ("element", 1, {"act":"tanh"})] 
-    Planar1d = lambda depth: [("affine", 1), 
-                ("planar", depth),
-                ("element", 1, {"act":"tanh"})]
-    # stochastic part for a layer, base distribution name, distribution parameters, flow config 
-    NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
-    NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 10))
-    NormalPlanar1d = ("normal", NormalParams(0.5), Planar1d(2))
+    cfgs = get_flow_block_cfg()
+    _, _, _, _, NormalAffine, NormalGlowStep, NormalPlanar1d = cfgs
     # flow config for all layers in the moel 
     sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]
     
@@ -280,7 +244,7 @@ def test_flow_forward():
                              ("element", 1, {"act":"tanh"})] 
     norm_flow = NF_Block(vec_len=16, flow_cfg=flow_cfg)
     out = norm_flow(torch.randn(8, 16, 7, 7))
-    print(norm_flow)
+    # print(norm_flow)
     
 def test_batched_ece():
     
@@ -333,10 +297,36 @@ def test_step_of_flow():
         print("Test Pass: keepdim Flag works for Step of Flow") 
         
 def test_vgg():
-    from models.vgg import vgg16
-    net = vgg16()
+    from models.vgg import vgg16, sto_vgg16, vgg19, sto_vgg19
+    net16 = vgg16()
     data = torch.rand(10, 3, 32, 32)
-    out = net(data)
+    out = net16(data)
+    net19 = vgg19()
+    data = torch.rand(10, 3, 32, 32)
+    out = net19(data)
+    
+    cfgs = get_flow_block_cfg()
+    NormalParams, AffineLayer, GlowStep, Planar1d, NormalAffine, NormalGlowStep, NormalPlanar1d = cfgs
+    feature_flow = [NormalAffine]*3 + [NormalGlowStep] + \
+                   [NormalAffine]*3 + [NormalGlowStep] + \
+                   [NormalAffine]*2 + [NormalGlowStep] + [NormalAffine]*2
+    classifier_flow = [NormalAffine] + [NormalPlanar1d] + [NormalAffine]
+    sto_model_cfg = feature_flow + classifier_flow
+    sto_net16 = sto_vgg16(sto_cfg=sto_model_cfg)
+    # print(sto_net16.sto_layers) # 13 StoConv2d, 3 StoLinear
+    sto16_out = sto_net16(data)
+    sto_model_cfg = [NormalAffine]*3 + sto_model_cfg
+    sto_net19 = sto_vgg19(sto_cfg=sto_model_cfg)
+    # print(sto_net19.sto_layers) # 16 StoConv2d, 3 StoLinear
+    sto19_out = sto_net19(data)
+    
+    cond1 = (sto16_out.shape == torch.Size([10, 10]))
+    cond2 = (sto19_out.shape == torch.Size([10, 10]))
+    
+    if cond1 and cond2:
+        print("Test Pass: Stochastic VGG has correct output shape")
+    else:
+        raise ValueError("Test Fail: Stochastic VGG has WRONG output shape")
     
 if __name__ == "__main__":
     # disable warnings to see the output more clearly

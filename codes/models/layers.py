@@ -22,7 +22,7 @@ class StoLayer(nn.Module):
         # and it can be used to disable stochastic part (maybe useful?)
         self.is_stochastic = False
 
-    def build_flow(self, vec_len, dist_name:str, dist_params:dict, flow_cfg):
+    def build_flow(self, vec_len, dist_name:str, dist_params:dict, flow_cfg=None):
         """
         Args:
             in_features, out_features, bias: same as nn.Linear
@@ -31,7 +31,7 @@ class StoLayer(nn.Module):
             flow_cfg (??): configuration of the normalizing flow 
         """
         # if the flow was not initialized when creating this layer
-        if not self.is_stochastic:
+        if not self.is_stochastic and flow_cfg != None:
             # unpack `dist_params` as a dict, therefore the keys have to be the
             # same as input arguments accepted by the distribution class
             self.base_dist = self.__class__.dist_types[dist_name.lower()](**dist_params)
