@@ -22,7 +22,7 @@ def get_flow_block_cfg():
                 ("element", 1, {"act":"tanh"})]
     # stochastic part for a layer, base distribution name, distribution parameters, flow config 
     NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
-    NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 10))
+    NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 0.25))
     NormalPlanar1d = ("normal", NormalParams(0.5), Planar1d(2))
     
     return NormalParams, AffineLayer, GlowStep, Planar1d, NormalAffine, NormalGlowStep, NormalPlanar1d
@@ -240,7 +240,7 @@ def test_flow_forward():
                              ("affine", 1, {"learnable":True}), 
                               # keys of params must be consistent with the arguments in the flow
                              ("planar2d", 8, {"init_sigma":0.01}),
-                             ("flowstep", 2, {"width":6,"keepdim":True}),
+                             ("flowstep", 2, {"width":0.25,"keepdim":True}),
                              ("element", 1, {"act":"tanh"})] 
     norm_flow = NF_Block(vec_len=16, flow_cfg=flow_cfg)
     out = norm_flow(torch.randn(8, 16, 7, 7))
@@ -313,6 +313,8 @@ def test_vgg():
     classifier_flow = [NormalAffine] + [NormalPlanar1d] + [NormalAffine]
     sto_model_cfg = feature_flow + classifier_flow
     sto_net16 = sto_vgg16(sto_cfg=sto_model_cfg)
+    sto_net16.migrate_from_det_model(net16)
+    det_params, sto_params = sto_net16.det_and_sto_params()
     # print(sto_net16.sto_layers) # 13 StoConv2d, 3 StoLinear
     sto16_out = sto_net16(data)
     sto_model_cfg = [NormalAffine]*3 + sto_model_cfg

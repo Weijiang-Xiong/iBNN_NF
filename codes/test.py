@@ -85,7 +85,7 @@ Planar1d = lambda depth: [("affine", 1),
             ("element", 1, {"act":"tanh"})]
 # stochastic part for a layer, base distribution name, distribution parameters, flow config 
 NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
-NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 16))
+NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 0.25))
 NormalPlanar1d = ("normal", NormalParams(0.5), Planar1d(2))
 # flow config for all layers in the moel 
 sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]

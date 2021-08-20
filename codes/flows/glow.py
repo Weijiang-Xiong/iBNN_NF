@@ -99,14 +99,17 @@ class AffineCoupling(nn.Module):
     """ Affine coupling layer; cf Glow section 3.3; RealNVP figure 2 """
     def __init__(self, n_channels, width, keepdim=True):
         super().__init__()
+        # width proportional to channel number, minimal 3
+        n_width = torch.clamp(torch.tensor([n_channels*width]), min=3).type(torch.int)
         # network layers;
         # per realnvp, network splits input, operates on half of it, and returns shift and scale of dim = half the input channels
-        self.conv1 = nn.Conv2d(n_channels//2, width, kernel_size=3, padding=1, bias=False)  # input is split along channel dim
-        self.actnorm1 = Actnorm(param_dim=(1, width, 1, 1))
-        self.conv2 = nn.Conv2d(width, width, kernel_size=1, padding=1, bias=False)
-        self.actnorm2 = Actnorm(param_dim=(1, width, 1, 1))
-        self.conv3 = nn.Conv2d(width, n_channels, kernel_size=3)            # output is split into scale and shift components
-        self.log_scale_factor = nn.Parameter(torch.zeros(n_channels,1,1))   # learned scale (cf RealNVP sec 4.1 / Glow official code
+        self.conv1 = nn.Conv2d(n_channels//2, n_width, kernel_size=3, padding=1, bias=False)  # input is split along channel dim
+        self.actnorm1 = Actnorm(param_dim=(1, n_width, 1, 1))
+        self.conv2 = nn.Conv2d(n_width, n_width, kernel_size=1, padding=1, bias=False)
+        self.actnorm2 = Actnorm(param_dim=(1, n_width, 1, 1))
+        self.conv3 = nn.Conv2d(n_width, n_channels, kernel_size=3)            # output is split into scale and shift components
+        # learned scale (cf RealNVP sec 4.1 / Glow official code
+        self.log_scale_factor = nn.Parameter(torch.zeros(n_channels,1,1))   
         self.keepdim = keepdim
 
         # initialize last convolution with zeros, such that each affine coupling layer performs an identity function

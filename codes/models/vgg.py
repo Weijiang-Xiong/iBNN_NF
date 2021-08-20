@@ -9,7 +9,7 @@ from typing import Union, List, Dict, Any, cast
 from .basic import StoModel
 from .layers import StoLayer, StoConv2d, StoLinear
 
-__all__ = ['VGG', 'vgg16', 'vgg19']
+__all__ = ['vgg16', 'vgg19', "sto_vgg16", "sto_vgg19"]
 
 
 # ============================ # 
@@ -102,7 +102,7 @@ def _vgg(arch: str, cfg: str, batch_norm: bool, pretrained: bool, progress: bool
 
 class StoVGG(StoModel):
     
-    DET_CLASS = VGG
+    DET_MODEL_CLASS = VGG
     
     def __init__(
         self,
@@ -146,6 +146,47 @@ class StoVGG(StoModel):
                 nn.init.normal_(m.weight, 0, 0.01)
                 nn.init.constant_(m.bias, 0)
                 
+    def det_and_sto_params(self):
+        
+        det_params, sto_params = [], []
+
+        for name, layer in self.features._modules.items():
+            if isinstance(layer, StoLayer):
+                det_params.extend(list(layer.det_compo.parameters()))
+                sto_params.extend(list(layer.norm_flow.parameters()))
+            else:
+                det_params.extend(list(layer.parameters()))
+                
+        for name, layer in self.classifier._modules.items():
+            if isinstance(layer, StoLayer):
+                det_params.extend(list(layer.det_compo.parameters()))
+                sto_params.extend(list(layer.norm_flow.parameters()))
+            else:
+                det_params.extend(list(layer.parameters()))   
+                
+        return det_params, sto_params
+    
+    def migrate_from_det_model(self, det_model):
+        det_class = self.DET_MODEL_CLASS
+        if isinstance(det_model, det_class):
+            for name, layer in self.features._modules.items():
+                if name == "": # skip empty names 
+                    continue
+                if isinstance(layer, StoLayer):
+                    layer.migrate_from_det_layer(getattr(det_model.features, name))
+                elif isinstance(layer, nn.Linear) or isinstance(layer, nn.Conv2d):
+                    layer.weight.data.copy_(getattr(det_model, name).weight.data)
+                    layer.bias.data.copy_(getattr(det_model, name).bias.data)
+            for name, layer in self.classifier._modules.items():
+                if name == "": # skip empty names 
+                    continue
+                if isinstance(layer, StoLayer):
+                    layer.migrate_from_det_layer(getattr(det_model.classifier, name))
+                elif isinstance(layer, nn.Linear) or isinstance(layer, nn.Conv2d):
+                    layer.weight.data.copy_(getattr(det_model, name).weight.data)
+                    layer.bias.data.copy_(getattr(det_model, name).bias.data)
+        
+                    
 def make_sto_layers(cfg: List[Union[str, int]], batch_norm: bool = False) -> nn.Sequential:
     layers: List[nn.Module] = []
     in_channels = 3
