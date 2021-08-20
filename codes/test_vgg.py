@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from models import vgg16, sto_vgg16
 from utils import compute_accuracy, compute_ece_loss
 
-train_deterministic = False # train a deterministic model as starting point 
+train_deterministic = True # train a deterministic model as starting point 
 
 # setup device 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -22,7 +22,7 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = True
 
 # prepare data
-data_dir = "./codes/data"
+data_dir = "./data"
 fig_dir = "./figs"
 
 # transforms adopted from https://github.com/kuangliu/pytorch-cifar/blob/master/main.py
@@ -40,8 +40,8 @@ transform_test = transforms.Compose([
 
 trainset = torchvision.datasets.CIFAR10(root=data_dir, train=True, download=True, transform=transform_train)
 testset = torchvision.datasets.CIFAR10(root=data_dir, train=False, download=True, transform=transform_test)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=2)
-testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True)
+testloader = torch.utils.data.DataLoader(testset, batch_size=16, shuffle=False)
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
 if train_deterministic:
@@ -148,8 +148,8 @@ def train_sto_model(sto_model_cfg, base_model):
             batch_kl.append(kl.item()/ len(trainloader.dataset))
         avg = lambda l: sum(l)/len(l)
         avg_loss, avg_ll, avg_kl = avg(batch_loss), avg(batch_ll), avg(batch_kl)
-        sto_acc = compute_accuracy(sto_model, testloader)
-        sto_ece = compute_ece_loss(sto_model, testloader)
+        sto_acc = compute_accuracy(sto_model, testloader, n_samples=16)
+        sto_ece = compute_ece_loss(sto_model, testloader, n_samples=16)
         print("Sto Model Epoch {} Avg Loss {:.4f} Likelihood {:.4f} KL {:.4f} Acc {:.4f} ECE {:.4f}".format(
                             epoch, avg_loss, avg_ll, avg_kl,sto_acc, sto_ece))
         loss_list.append(avg_loss)
