@@ -9,7 +9,7 @@ from typing import Union, List, Dict, Any, cast
 from .basic import StoModel
 from .layers import StoLayer, StoConv2d, StoLinear
 
-__all__ = ['vgg16', 'vgg19', "sto_vgg16", "sto_vgg19"]
+__all__ = ["VGG", "StoVGG", 'vgg16', 'vgg19', "sto_vgg16", "sto_vgg19"]
 
 
 # ============================ # 

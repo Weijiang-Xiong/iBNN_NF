@@ -60,3 +60,27 @@ class NF_Block(nn.Module):
             sum_log_det_jacobian = sum_log_det_jacobian + log_det_jacobian
 
         return samples, sum_log_det_jacobian
+    
+    
+# ============================================== #
+# ==== some basic configuration for flows   ==== #
+# ============================================== #
+
+# parameters for base distribution 
+NormalParams = lambda scale: {"loc":1.0, "scale":scale}
+# flow configurations, List of tuple (type, depth, params)
+AffineLayer = [("affine", 1, {"learnable":True})]
+GlowStep =  lambda depth, width:[
+            ("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
+            ("planar2d", 2, {"init_sigma":0.01}),# the second stack of flows (type, depth, params)
+            ("flowstep", depth, {"width":width,"keepdim":True}),
+            ("element", 1, {"act":"tanh"})] 
+Planar1d = lambda depth: [("affine", 1), 
+            ("planar", depth),
+            ("element", 1, {"act":"tanh"})]
+# stochastic part for a layer, base distribution name, distribution parameters, flow config 
+NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
+NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 0.25))
+NormalPlanar1d = ("normal", NormalParams(0.5), Planar1d(2))
+# flow config for all layers in the model 
+example_sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]

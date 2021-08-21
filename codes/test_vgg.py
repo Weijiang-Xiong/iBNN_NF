@@ -13,8 +13,9 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from models import vgg16, sto_vgg16
 from utils import compute_accuracy, compute_ece_loss
+from flows import NormalAffine, NormalGlowStep, NormalPlanar1d
 
-train_deterministic = True # train a deterministic model as starting point 
+train_deterministic = False # train a deterministic model as starting point 
 
 # setup device 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -22,8 +23,8 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = True
 
 # prepare data
-data_dir = "./data"
-fig_dir = "./figs"
+data_dir = "codes/data"
+fig_dir = "codes/figs"
 
 # transforms adopted from https://github.com/kuangliu/pytorch-cifar/blob/master/main.py
 transform_train = transforms.Compose([
@@ -92,23 +93,6 @@ if train_deterministic:
 # =  migrate from base model, finetune and train flow = #
 # ===================================================== #
 
-# parameters for base distribution 
-NormalParams = lambda scale: {"loc":1.0, "scale":scale}
-# flow configurations, List of tuple (type, depth, params)
-AffineLayer = [("affine", 1, {"learnable":True})]
-GlowStep =  lambda depth, width:[
-            ("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
-            ("planar2d", 1, {"init_sigma":0.01}),# the second stack of flows (type, depth, params)
-            ("flowstep", depth, {"width":width,"keepdim":True}),
-            ("planar2d", 1, {"init_sigma":0.01})] 
-Planar1d = lambda depth: [("affine", 1), 
-            ("planar", depth),
-            ("element", 1, {"act":"tanh"})]
-# stochastic part for a layer, base distribution name, distribution parameters, flow config 
-NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
-NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(2, 0.25))
-NormalPlanar1d = ("normal", NormalParams(0.5), Planar1d(2))
-# flow config for all layers in the model  
 sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]
 feature_flow = [NormalAffine]*3 + [NormalGlowStep] + \
                 [NormalAffine]*3 + [NormalGlowStep] + \
@@ -116,10 +100,9 @@ feature_flow = [NormalAffine]*3 + [NormalGlowStep] + \
 classifier_flow = [NormalAffine] + [NormalPlanar1d] + [NormalAffine]
 sto_model_cfg = feature_flow + classifier_flow
 
-def train_sto_model(sto_model_cfg, trainloader=None, testloader=None, base_model=None, num_epochs=30, device=None):
-    sto_model = sto_vgg16(sto_cfg=sto_model_cfg).to(device)
+def train_sto_model(sto_model, trainloader=None, testloader=None, base_model=None, num_epochs=30, device=None):
 
-    if base_model != None:
+    if isinstance(base_model, sto_model.DET_MODEL_CLASS):
         sto_model.migrate_from_det_model(base_model)
 
     det_params, sto_params = sto_model.det_and_sto_params()
@@ -147,8 +130,8 @@ def train_sto_model(sto_model_cfg, trainloader=None, testloader=None, base_model
             batch_kl.append(kl.item()/ len(trainloader.dataset))
         avg = lambda l: sum(l)/len(l)
         avg_loss, avg_ll, avg_kl = avg(batch_loss), avg(batch_ll), avg(batch_kl)
-        sto_acc = compute_accuracy(sto_model, testloader, n_samples=16)
-        sto_ece = compute_ece_loss(sto_model, testloader, n_samples=16)
+        sto_acc = compute_accuracy(sto_model, testloader, n_samples=32)
+        sto_ece = compute_ece_loss(sto_model, testloader, n_samples=32)
         print("Sto Model Epoch {} Avg Loss {:.4f} Likelihood {:.4f} KL {:.4f} Acc {:.4f} ECE {:.4f}".format(
                             epoch, avg_loss, avg_ll, avg_kl,sto_acc, sto_ece))
         loss_list.append(avg_loss)
@@ -157,12 +140,13 @@ def train_sto_model(sto_model_cfg, trainloader=None, testloader=None, base_model
         acc_list.append(sto_acc)
         ece_list.append(sto_ece)
 
-    return sto_model, loss_list, ll_list, kl_list, acc_list, ece_list
-    
-results = train_sto_model(sto_model_cfg, trainloader, testloader, base_model, num_epochs=30, device=device)
+    return loss_list, ll_list, kl_list, acc_list, ece_list
+
+sto_model = sto_vgg16(sto_cfg=sto_model_cfg).to(device)
+results = train_sto_model(sto_model, trainloader, testloader, None, num_epochs=30, device=device)
 
 def plot_results(results, anno=""):
-    sto_model, loss_list, ll_list, kl_list, acc_list, ece_list = results 
+    loss_list, ll_list, kl_list, acc_list, ece_list = results 
     fig = plt.figure(figsize=(15, 10))
     plt.subplot(2,3,1)
     plt.plot(loss_list)
@@ -186,5 +170,6 @@ def plot_results(results, anno=""):
 plot_results(results, anno="full")
 
 sto_model_cfg = [NormalAffine]*16
-results = train_sto_model(sto_model_cfg, trainloader, testloader, base_model, num_epochs=30, device=device)
+sto_model = sto_vgg16(sto_cfg=sto_model_cfg).to(device)
+results = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=30, device=device)
 plot_results(results, anno="no_flow")
