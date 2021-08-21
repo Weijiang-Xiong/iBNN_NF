@@ -74,10 +74,9 @@ GlowStep =  lambda depth, width:[
             ("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
             ("planar2d", 2, {"init_sigma":0.01}),# the second stack of flows (type, depth, params)
             ("flowstep", depth, {"width":width,"keepdim":True}),
-            ("element", 1, {"act":"tanh"})] 
+            ("planar2d", 2, {"init_sigma":0.01})] 
 Planar1d = lambda depth: [("affine", 1), 
-            ("planar", depth),
-            ("element", 1, {"act":"tanh"})]
+                          ("planar", depth)]
 # stochastic part for a layer, base distribution name, distribution parameters, flow config 
 NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
 NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 0.25))

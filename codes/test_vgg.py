@@ -23,8 +23,8 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = True
 
 # prepare data
-data_dir = "codes/data"
-fig_dir = "codes/figs"
+data_dir = "./data"
+fig_dir = "./figs"
 
 # transforms adopted from https://github.com/kuangliu/pytorch-cifar/blob/master/main.py
 transform_train = transforms.Compose([
@@ -87,7 +87,7 @@ if train_deterministic:
     plt.title("ECE on Test Set")
     plt.show()
     fig.tight_layout()
-    fig.savefig(fig_dir + "/" + "deterministic VGG16.jpg")
+    fig.savefig(fig_dir + "/" + "VGG16_CIFAR10.jpg")
     
 # ===================================================== #
 # =  migrate from base model, finetune and train flow = #
@@ -130,8 +130,8 @@ def train_sto_model(sto_model, trainloader=None, testloader=None, base_model=Non
             batch_kl.append(kl.item()/ len(trainloader.dataset))
         avg = lambda l: sum(l)/len(l)
         avg_loss, avg_ll, avg_kl = avg(batch_loss), avg(batch_ll), avg(batch_kl)
-        sto_acc = compute_accuracy(sto_model, testloader, n_samples=32)
-        sto_ece = compute_ece_loss(sto_model, testloader, n_samples=32)
+        sto_acc = compute_accuracy(sto_model, testloader, n_samples=64)
+        sto_ece = compute_ece_loss(sto_model, testloader, n_samples=64)
         print("Sto Model Epoch {} Avg Loss {:.4f} Likelihood {:.4f} KL {:.4f} Acc {:.4f} ECE {:.4f}".format(
                             epoch, avg_loss, avg_ll, avg_kl,sto_acc, sto_ece))
         loss_list.append(avg_loss)
@@ -142,8 +142,9 @@ def train_sto_model(sto_model, trainloader=None, testloader=None, base_model=Non
 
     return loss_list, ll_list, kl_list, acc_list, ece_list
 
+sto_epochs = 80
 sto_model = sto_vgg16(sto_cfg=sto_model_cfg).to(device)
-results = train_sto_model(sto_model, trainloader, testloader, None, num_epochs=30, device=device)
+result1 = train_sto_model(sto_model, trainloader, testloader, None, num_epochs=sto_epochs, device=device)
 
 def plot_results(results, anno=""):
     loss_list, ll_list, kl_list, acc_list, ece_list = results 
@@ -165,11 +166,17 @@ def plot_results(results, anno=""):
     plt.title("ECE on testset")
     plt.show()
     fig.tight_layout()
-    fig.savefig(fig_dir + "/" + "stochastic_VGG16_{}.jpg".format(anno))
+    fig.savefig(fig_dir + "/" + "{}".format(anno))
 
-plot_results(results, anno="full")
+plot_results(result1, anno="VGG16_flow_CIFAR10")
 
 sto_model_cfg = [NormalAffine]*16
 sto_model = sto_vgg16(sto_cfg=sto_model_cfg).to(device)
-results = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=30, device=device)
-plot_results(results, anno="no_flow")
+result2 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
+plot_results(result2, anno="no_flow")
+
+from test_lenet import plot_multiple_results
+
+result_list = [result1, result2]
+anno_list = ["VGG_flow", "VGG_no_flow"]
+plot_multiple_results(result_list, anno_list, fig_dir="./figs", save_name="all_results_vgg")

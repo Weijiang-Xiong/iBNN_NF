@@ -57,6 +57,7 @@ class StoModel(nn.Module):
         # elbo =  log_likelihood - kl_divergence (both should be averaged over samples)
         # but log_likelihood is averaged over samples AND data points (cleaner code)
         log_likelihood = D.Categorical(logits=log_probs).log_prob(label).mean() 
+        # log_likelihood = - F.cross_entropy(log_probs, label) # an alternative
         # so remember to divide kl by the number of data points 
         # maybe len(dataset), or len(dataloader)*dataloader.batch_size
         kl_divergence = self.kl_div()

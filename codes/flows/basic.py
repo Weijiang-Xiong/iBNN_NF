@@ -99,7 +99,7 @@ class PlanarFlow2d(nn.Module):
         log_abs_det_jacobian = torch.log(torch.abs(det) + EPS).squeeze()
         
         if not self.keepdim:
-            log_abs_det_jacobian = log_abs_det_jacobian * z.shape[2] * z.shape[3]
+            log_abs_det_jacobian = log_abs_det_jacobian.sum(dim=[1,2])
             
         return f_z, log_abs_det_jacobian
 class ElementFlow(nn.Module):

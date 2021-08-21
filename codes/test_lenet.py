@@ -34,8 +34,8 @@ transform = transforms.Compose([
     transforms.Normalize((0.5,),(0.5,))
 ])
 
-trainset = torchvision.datasets.FashionMNIST(root=data_dir, train=True, transform=transform, download=False)
-testset = torchvision.datasets.FashionMNIST(root=data_dir, train=False, transform=transform, download=False)
+trainset = torchvision.datasets.FashionMNIST(root=data_dir, train=True, transform=transform, download=True)
+testset = torchvision.datasets.FashionMNIST(root=data_dir, train=False, transform=transform, download=True)
 trainloader = DataLoader(trainset, batch_size=128, shuffle=True)
 testloader = DataLoader(testset, batch_size=64, shuffle=False)
 class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal',
@@ -207,7 +207,6 @@ transform_test = transforms.Compose([
 
 trainset = torchvision.datasets.CIFAR10(root=data_dir, train=True, download=True, transform=transform_train)
 testset = torchvision.datasets.CIFAR10(root=data_dir, train=False, download=True, transform=transform_test)
-trainset, testset = Subset(trainset, range(300)), Subset(testset, range(300))
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True)
 testloader = torch.utils.data.DataLoader(testset, batch_size=32, shuffle=False)
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
@@ -258,16 +257,16 @@ if train_deterministic:
     fig.tight_layout()
     fig.savefig(fig_dir + "/" + "LeNet_CIFAR10.jpg")
 
-
+sto_epochs = 50
 sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]
 sto_model = StoLeNet(sto_cfg=sto_model_cfg, colored=True).to(device)
-result3 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=50, device=device)
+result3 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
 plot_results(result3, anno="StoLeNet_flow_CIFAR10")
 
 
 sto_model_cfg = [NormalAffine, NormalAffine, NormalAffine, NormalAffine, NormalAffine]
 sto_model = StoLeNet(sto_cfg=sto_model_cfg, colored=True).to(device)
-result4 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=50, device=device)
+result4 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
 plot_results(result4, anno="StoLeNet_no_flow_CIFAR10")
 
 
@@ -304,7 +303,7 @@ def plot_multiple_results(result_list, anno_list, fig_dir=None, save_name=None):
 
 result_list = [result1, result2, result3, result4]
 anno_list = ["FMNIST Flow", "FMNIST no Flow", "CIFAR Flow", "CIFAR no Flow"]
-plot_multiple_results(result_list, anno_list, fig_dir, "all_results")
+plot_multiple_results(result_list, anno_list, fig_dir, "all_results_lenet")
 
 
 
