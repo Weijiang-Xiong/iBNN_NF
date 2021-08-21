@@ -40,8 +40,8 @@ transform_test = transforms.Compose([
 
 trainset = torchvision.datasets.CIFAR10(root=data_dir, train=True, download=True, transform=transform_train)
 testset = torchvision.datasets.CIFAR10(root=data_dir, train=False, download=True, transform=transform_test)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=2)
-testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True)
+testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False)
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
 if train_deterministic:

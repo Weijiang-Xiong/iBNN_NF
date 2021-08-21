@@ -212,10 +212,12 @@ class StoMLP(StoModel):
 
 class LeNet(nn.Module):
     
-    def __init__(self):
+    def __init__(self, colored=False):
         super(LeNet, self).__init__()
-        self.conv1 = nn.Conv2d(1, 6, 5)
+        # use 3 dimensions for colored images
+        self.conv1 = nn.Conv2d(3, 6, 5) if colored else nn.Conv2d(1, 6, 5)
         self.conv2 = nn.Conv2d(6, 16, 5)
+        self.ada_pool = nn.AdaptiveAvgPool2d((4,4))
         self.fc1 = nn.Linear(16*4*4, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 10)
@@ -223,16 +225,17 @@ class LeNet(nn.Module):
     def forward(self, x:torch.Tensor):
         """
         Args:
-          x of shape (batch_size, 1, 28, 28): Input images.
+          x of shape (batch_size, 1, H, W): Grey scale Input images.
         
         Returns:
           y of shape (batch_size, 10): Outputs of the network.
         """
         device = x.device
         x = F.max_pool2d(F.relu(self.conv1(x)), (2,2), 2) # cell size (2,2), stride 2
-        x = F.max_pool2d(F.relu(self.conv2(x)), (2,2), 2)
+        x = self.ada_pool(F.relu(self.conv2(x)))
         # flatten the features, but keep the batch dimension
-        x = x.view(-1, int(torch.prod(torch.Tensor(list(x.size())[1:])))) 
+        x = x.flatten(start_dim=1, end_dim=-1)
+        # x = x.view(-1, int(torch.prod(torch.Tensor(list(x.size())[1:])))) 
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x) # use F.log_softmax() depending on needs
@@ -242,29 +245,31 @@ class StoLeNet(StoModel):
 
     DET_MODEL_CLASS = LeNet
     
-    def __init__(self, sto_cfg:List[Tuple]):
+    def __init__(self, sto_cfg:List[Tuple], colored=False):
         super().__init__()
-        self.conv1 = StoConv2d(1, 6, 5)
+        # use 3 dimensions for colored images
+        self.conv1 = StoConv2d(3, 6, 5) if colored else StoConv2d(1, 6, 5)
         self.conv2 = StoConv2d(6, 16, 5)
+        self.ada_pool = nn.AdaptiveAvgPool2d((4,4))
         self.fc1 = StoLinear(16*4*4, 120)
         self.fc2 = StoLinear(120, 84)
         self.fc3 = StoLinear(84, 10)
         self.sto_layers = [m for m in self.modules() if isinstance(m, StoLayer)]
         self.build_all_flows(sto_cfg)
             
-    def forward(self, x):
+    def forward(self, x:torch.Tensor):
         """
         Args:
-          x of shape (batch_size, 1, 28, 28): Input images.
+          x of shape (batch_size, 1, H, W): Grey scale Input images.
         
         Returns:
           y of shape (batch_size, 10): Outputs of the network.
         """
         device = x.device
         x = F.max_pool2d(F.relu(self.conv1(x)), (2,2), 2) # cell size (2,2), stride 2
-        x = F.max_pool2d(F.relu(self.conv2(x)), (2,2), 2)
+        x = self.ada_pool(F.relu(self.conv2(x)))
         # flatten the features, but keep the batch dimension
-        x = x.view(-1, int(torch.prod(torch.Tensor(list(x.size())[1:])))) 
+        x = x.flatten(start_dim=1, end_dim=-1)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x) # use F.log_softmax() depending on needs
