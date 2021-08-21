@@ -33,7 +33,7 @@ def test_linear_migration():
     dist_name = "normal"
     dist_params = {"loc": 0, "scale": 1}
     flow_cfg = [("affine", 1, {"learnable": True}),  # the first stack of flows (type, depth, params)
-                ("planar2d", 8, {"init_sigma": 0.01})]
+                ("planar", 8, {"init_sigma": 0.01})]
 
     base_layer = nn.Linear(2, 2)
     sto_layer = StoLinear(2, 2, dist_name=dist_name, dist_params=dist_params, flow_cfg=flow_cfg)
@@ -329,7 +329,41 @@ def test_vgg():
         print("Test Pass: Stochastic VGG has correct output shape")
     else:
         raise ValueError("Test Fail: Stochastic VGG has WRONG output shape")
+
+def test_layer_presample():
+    dist_name = "normal"
+    dist_params = {"loc": 1, "scale": 0.5}
+    flow_cfg = [("affine", 1, {"learnable": True}),  # the first stack of flows (type, depth, params)
+                ("planar", 8, {"init_sigma": 0.01})]
     
+    data1 = torch.randn(77, 6)
+    data2 = torch.randn(55, 6) # typically the last batch will have a different size 
+    layer = StoLinear(6, 33, dist_name=dist_name, dist_params=dist_params, flow_cfg=flow_cfg)
+    layer.use_fixed_samples = True
+    for _ in range(3):
+        out = layer(data1) 
+    out = layer(data2)
+    # in test time
+    layer.eval()
+    for _ in range(3):
+        # use debug function here to step into forward
+        out = layer(data1)
+    out = layer(data2) 
+    cond1 = layer.stored_samples.shape == data1.shape
+    
+    layer.stored_samples = None
+    layer.use_fixed_samples = False
+    for _ in range(3):
+        # use debug function here to step into forward
+        out = layer(data1)
+    out = layer(data2) 
+    cond2 = layer.stored_samples == None
+    
+    if cond1 and cond2:
+        print("Test Pass: use pre calculated samples to speed up inference")
+    else:
+        raise ValueError("Test Failed: CANNOT use pre calculated samples to speed up inference")
+
 if __name__ == "__main__":
     # disable warnings to see the output more clearly
     import warnings
@@ -343,6 +377,7 @@ if __name__ == "__main__":
     # tests for layers
     test_linear_migration()
     test_conv_migration()
+    test_layer_presample()
     
     # tests for models
     test_vgg()

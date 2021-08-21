@@ -60,13 +60,16 @@ class StoModel(nn.Module):
         # so remember to divide kl by the number of data points 
         # maybe len(dataset), or len(dataloader)*dataloader.batch_size
         kl_divergence = self.kl_div()
-        return log_likelihood, kl_divergence    
+        return log_likelihood, kl_divergence
     
     def det_and_sto_params(self):
         """ return the deterministic and stochastic parameters in the model
             both det_params and sto_params are list of nn.Parameters
+            this implementation works for simple feed forward netwoks, where
+            the layers are directly defined like `self.conv1 = nn.Conv2d(1,6,5)`
         """
         det_params, sto_params = [], []
+        # _modules won't recursively find all submodules
         for name, layer in self._modules.items():
             if isinstance(layer, StoLayer):
                 det_params.extend(list(layer.det_compo.parameters()))
@@ -78,6 +81,7 @@ class StoModel(nn.Module):
     def migrate_from_det_model(self):
         raise NotImplementedError
     
+    # disable stochastic parts in all layers
     def no_stochastic(self):
         for layer in self.sto_layers:
             layer.is_stochastic = False
@@ -86,14 +90,14 @@ class StoModel(nn.Module):
         for layer in self.sto_layers:
             layer.is_stochastic = True
     
-    def turn_to_stochastic(self, layer_name, sto_cfg):
-        """ turn a deterministic layer into a stochastic layer
-        
-            layer_name: the name of that layer, can be used to get the layer object with `getattr(self, layer_name)`
+    # use fixed samples for inference or not 
+    def use_fixed_samples(self):
+        for layer in self.sto_layers:
+            layer.use_fixed_samples = True
             
-            sto_cfg: the configuration of the base distribution along with the flow configuration
-        """
-        pass 
+    def no_fixed_samples(self):
+        for layer in self.sto_layers:
+            layer.use_fixed_samples = False
     
       
 class LogisticRegression(nn.Module):

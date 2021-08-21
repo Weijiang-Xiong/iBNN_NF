@@ -116,10 +116,10 @@ feature_flow = [NormalAffine]*3 + [NormalGlowStep] + \
 classifier_flow = [NormalAffine] + [NormalPlanar1d] + [NormalAffine]
 sto_model_cfg = feature_flow + classifier_flow
 
-def train_sto_model(sto_model_cfg, base_model):
+def train_sto_model(sto_model_cfg, trainloader=None, testloader=None, base_model=None, num_epochs=30, device=None):
     sto_model = sto_vgg16(sto_cfg=sto_model_cfg).to(device)
 
-    if train_deterministic:
+    if base_model != None:
         sto_model.migrate_from_det_model(base_model)
 
     det_params, sto_params = sto_model.det_and_sto_params()
@@ -128,7 +128,6 @@ def train_sto_model(sto_model_cfg, base_model):
                     {'params': sto_params, 'lr': 2e-3}
                 ])
 
-    num_epochs = 30
     loss_list, ll_list, kl_list, acc_list, ece_list = [[] for _ in range(5)]
     for epoch in range(num_epochs):
         sto_model.train()
@@ -160,7 +159,7 @@ def train_sto_model(sto_model_cfg, base_model):
 
     return sto_model, loss_list, ll_list, kl_list, acc_list, ece_list
     
-results = train_sto_model(sto_model_cfg, base_model)
+results = train_sto_model(sto_model_cfg, trainloader, testloader, base_model, num_epochs=30, device=device)
 
 def plot_results(results, anno=""):
     sto_model, loss_list, ll_list, kl_list, acc_list, ece_list = results 
@@ -187,5 +186,5 @@ def plot_results(results, anno=""):
 plot_results(results, anno="full")
 
 sto_model_cfg = [NormalAffine]*16
-results = train_sto_model(sto_model_cfg, base_model)
+results = train_sto_model(sto_model_cfg, trainloader, testloader, base_model, num_epochs=30, device=device)
 plot_results(results, anno="no_flow")
