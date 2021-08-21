@@ -27,7 +27,7 @@ torch.backends.cudnn.deterministic = True
 data_dir = "./data"
 fig_dir = "./figs"
 
-
+print("Experiments with FashionMNIST")
 # compose transforms
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -191,6 +191,7 @@ sto_model = StoLeNet(sto_cfg=sto_model_cfg, colored=False).to(device)
 result2 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=30, device=device)
 plot_results(result2, anno="StoLeNet_no_flow_FMNIST")
 
+print("Experiments with CIFAR10")
 # transforms adopted from https://github.com/kuangliu/pytorch-cifar/blob/master/main.py
 transform_train = transforms.Compose([
     transforms.RandomCrop(32, padding=4),
