@@ -9,13 +9,14 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.distributions as D
 import torch.nn.functional as F
+torch.autograd.set_detect_anomaly(True)
 
 from torch.utils.data import DataLoader, Subset
 from models import vgg16, sto_vgg16
 from utils import compute_accuracy, compute_ece_loss
 from flows import NormalAffine, NormalGlowStep, NormalPlanar1d
 
-train_deterministic = True # train a deterministic model as starting point 
+train_deterministic = False # train a deterministic model as starting point 
 
 # setup device 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -23,9 +24,9 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = True
 
 # prepare data
-data_dir = "./data"
-fig_dir = "./figs"
-weight_dir = "./models/trained/"
+data_dir = "codes/data"
+fig_dir = "codes/figs"
+weight_dir = "codes/models/trained/"
 # transforms adopted from https://github.com/kuangliu/pytorch-cifar/blob/master/main.py
 transform_train = transforms.Compose([
     transforms.RandomCrop(32, padding=4),
@@ -120,8 +121,6 @@ def train_sto_model(sto_model, trainloader=None, testloader=None, base_model=Non
         for img, label in trainloader:
             img, label = img.to(device), label.to(device)
             pred = sto_model(img)
-            if np.isnan(pred.detach().cpu()[0,0]):
-                continue
             log_likelihood, kl = sto_model.calc_loss(pred, label)
             loss = -log_likelihood + kl / len(trainloader.dataset)
             

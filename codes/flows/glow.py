@@ -5,12 +5,14 @@ arXiv:1807.03039v2
 code credit to https://github.com/kamenbliznashki/normalizing_flows
 actually only the "step of flow" is ported here
 """
-
+import numpy as np 
 import torch 
 import torch.nn as nn 
 import torch.nn.functional as F 
 import torch.distributions as D 
 from torch.utils.checkpoint import checkpoint
+
+EPS = 1e-8
 
 class Actnorm(nn.Module):
     """ Actnorm layer; cf Glow section 3.1 """
@@ -24,10 +26,10 @@ class Actnorm(nn.Module):
         if not self.initialized:
             # per channel mean and variance where x.shape = (B, C, H, W)
             self.bias.squeeze().data.copy_(x.transpose(0,1).flatten(1).mean(1)).view_as(self.scale)
-            self.scale.squeeze().data.copy_(x.transpose(0,1).flatten(1).std(1, False) + 1e-6).view_as(self.bias)
+            self.scale.squeeze().data.copy_(x.transpose(0,1).flatten(1).std(1, False) + EPS).view_as(self.bias)
             self.initialized += 1
 
-        z = (x - self.bias) / self.scale
+        z = (x - self.bias) / (self.scale + EPS)
         logdet = - self.scale.abs().log().sum()
         if not self.keepdim:
             logdet = logdet * z.shape[2] * z.shape[3]
