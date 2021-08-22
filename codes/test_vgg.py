@@ -157,27 +157,7 @@ if train_deterministic == False:
 sto_model = sto_vgg16(sto_cfg=sto_model_cfg).to(device)
 result1 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
 
-def plot_results(results, anno=""):
-    loss_list, ll_list, kl_list, acc_list, ece_list = results 
-    fig = plt.figure(figsize=(15, 10))
-    plt.subplot(2,3,1)
-    plt.plot(loss_list)
-    plt.title("Negative ELBO")
-    plt.subplot(2,3,2)
-    plt.plot(ll_list)
-    plt.title("Log Likelihood")
-    plt.subplot(2,3,3)
-    plt.plot(kl_list)
-    plt.title("KL Divergence")
-    plt.subplot(2,3,4)
-    plt.plot(acc_list)
-    plt.title("Test Accuracy")
-    plt.subplot(2,3,5)
-    plt.plot(ece_list)
-    plt.title("ECE on testset")
-    plt.show()
-    fig.tight_layout()
-    fig.savefig(fig_dir + "/" + "{}".format(anno))
+from test_lenet import plot_results, plot_multiple_results
 
 plot_results(result1, anno="VGG16_flow_CIFAR10")
 
@@ -186,7 +166,6 @@ sto_model = sto_vgg16(sto_cfg=sto_model_cfg).to(device)
 result2 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
 plot_results(result2, anno="no_flow")
 
-from test_lenet import plot_multiple_results
 
 result_list = [result1, result2]
 anno_list = ["VGG_flow", "VGG_no_flow"]

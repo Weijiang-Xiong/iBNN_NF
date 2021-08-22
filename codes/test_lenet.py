@@ -161,9 +161,9 @@ sto_epochs = 50
 sto_model = StoLeNet(sto_cfg=sto_model_cfg, colored=False).to(device)
 result1 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
 
-def plot_results(results, anno=""):
+def plot_results(results, anno="", figsize=(15,8)):
     loss_list, ll_list, kl_list, acc_list, ece_list = results 
-    fig = plt.figure(figsize=(15, 8))
+    fig = plt.figure(figsize=figsize)
     plt.subplot(2,3,1)
     plt.plot(loss_list)
     plt.title("Negative ELBO")
