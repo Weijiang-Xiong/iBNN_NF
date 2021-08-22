@@ -157,13 +157,13 @@ def train_sto_model(sto_model:nn.Module, trainloader=None, testloader=None, base
 
     return loss_list, ll_list, kl_list, acc_list, ece_list
 
-
+sto_epochs = 50
 sto_model = StoLeNet(sto_cfg=sto_model_cfg, colored=False).to(device)
-result1 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=30, device=device)
+result1 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
 
 def plot_results(results, anno=""):
     loss_list, ll_list, kl_list, acc_list, ece_list = results 
-    fig = plt.figure(figsize=(15, 10))
+    fig = plt.figure(figsize=(15, 8))
     plt.subplot(2,3,1)
     plt.plot(loss_list)
     plt.title("Negative ELBO")
@@ -188,7 +188,7 @@ plot_results(result1, anno="StoLeNet_flow_FMNIST")
 
 sto_model_cfg = [NormalAffine, NormalAffine, NormalAffine, NormalAffine, NormalAffine]
 sto_model = StoLeNet(sto_cfg=sto_model_cfg, colored=False).to(device)
-result2 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=30, device=device)
+result2 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
 plot_results(result2, anno="StoLeNet_no_flow_FMNIST")
 
 print("Experiments with CIFAR10")
@@ -257,7 +257,7 @@ if train_deterministic:
     fig.tight_layout()
     fig.savefig(fig_dir + "/" + "LeNet_CIFAR10.jpg")
 
-sto_epochs = 50
+
 sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]
 sto_model = StoLeNet(sto_cfg=sto_model_cfg, colored=True).to(device)
 result3 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
@@ -270,8 +270,8 @@ result4 = train_sto_model(sto_model, trainloader, testloader, base_model, num_ep
 plot_results(result4, anno="StoLeNet_no_flow_CIFAR10")
 
 
-def plot_multiple_results(result_list, anno_list, fig_dir=None, save_name=None):
-    fig = plt.figure(figsize=(15, 10))
+def plot_multiple_results(result_list, anno_list, fig_dir=None, save_name=None, figsize=(15, 8)):
+    fig = plt.figure(figsize=figsize)
     for result in result_list:
         loss_list, ll_list, kl_list, acc_list, ece_list = result 
         plt.subplot(2,3,1)

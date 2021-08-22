@@ -10,12 +10,12 @@ import torch.optim as optim
 import torch.distributions as D
 import torch.nn.functional as F
 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from models import vgg16, sto_vgg16
 from utils import compute_accuracy, compute_ece_loss
 from flows import NormalAffine, NormalGlowStep, NormalPlanar1d
 
-train_deterministic = False # train a deterministic model as starting point 
+train_deterministic = True # train a deterministic model as starting point 
 
 # setup device 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -25,7 +25,7 @@ torch.backends.cudnn.deterministic = True
 # prepare data
 data_dir = "./data"
 fig_dir = "./figs"
-
+weight_dir = "./models/trained/"
 # transforms adopted from https://github.com/kuangliu/pytorch-cifar/blob/master/main.py
 transform_train = transforms.Compose([
     transforms.RandomCrop(32, padding=4),
@@ -73,6 +73,7 @@ if train_deterministic:
         loss_list.append(avg_loss)
         acc_list.append(base_acc)
         ece_list.append(base_ece)
+        torch.save(base_model.state_dict(), "{}/{}".format(weight_dir, "base_vgg_weights.pth"))
         
 if train_deterministic:
     fig = plt.figure(figsize=(18, 5))
@@ -104,6 +105,7 @@ def train_sto_model(sto_model, trainloader=None, testloader=None, base_model=Non
 
     if isinstance(base_model, sto_model.DET_MODEL_CLASS):
         sto_model.migrate_from_det_model(base_model)
+        print("Loaded weights from a base model")
 
     det_params, sto_params = sto_model.det_and_sto_params()
     optimizer = optim.Adam([
@@ -118,6 +120,8 @@ def train_sto_model(sto_model, trainloader=None, testloader=None, base_model=Non
         for img, label in trainloader:
             img, label = img.to(device), label.to(device)
             pred = sto_model(img)
+            if np.isnan(pred.detach().cpu()[0,0]):
+                continue
             log_likelihood, kl = sto_model.calc_loss(pred, label)
             loss = -log_likelihood + kl / len(trainloader.dataset)
             
@@ -143,8 +147,15 @@ def train_sto_model(sto_model, trainloader=None, testloader=None, base_model=Non
     return loss_list, ll_list, kl_list, acc_list, ece_list
 
 sto_epochs = 80
+if train_deterministic == False:
+    try:
+        base_model = vgg16().load_state_dict(torch.load("{}/{}".format(weight_dir, "base_vgg_weights.pth")))
+        print("Loaded weights from pretrained model")
+    except:
+        base_model = vgg16()
+
 sto_model = sto_vgg16(sto_cfg=sto_model_cfg).to(device)
-result1 = train_sto_model(sto_model, trainloader, testloader, None, num_epochs=sto_epochs, device=device)
+result1 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
 
 def plot_results(results, anno=""):
     loss_list, ll_list, kl_list, acc_list, ece_list = results 
@@ -179,4 +190,4 @@ from test_lenet import plot_multiple_results
 
 result_list = [result1, result2]
 anno_list = ["VGG_flow", "VGG_no_flow"]
-plot_multiple_results(result_list, anno_list, fig_dir="./figs", save_name="all_results_vgg")
+plot_multiple_results(result_list, anno_list, fig_dir=fig_dir, save_name="all_results_vgg")
