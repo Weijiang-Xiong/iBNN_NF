@@ -14,9 +14,11 @@ torch.autograd.set_detect_anomaly(True)
 from torch.utils.data import DataLoader, Subset
 from models import vgg16, sto_vgg16
 from utils import compute_accuracy, compute_ece_loss
-from flows import NormalAffine, NormalGlowStep, NormalPlanar1d
+from flows import NormalAffine, NormalGlowStep, NormalPlanar1d, NormalInvConv
 
-train_deterministic = False # train a deterministic model as starting point 
+from test_lenet import plot_results, plot_multiple_results, train_sto_model
+
+train_deterministic = True # train a deterministic model as starting point 
 
 # setup device 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -24,9 +26,9 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = True
 
 # prepare data
-data_dir = "codes/data"
-fig_dir = "codes/figs"
-weight_dir = "codes/models/trained/"
+data_dir = "./data"
+fig_dir = "./figs"
+weight_dir = "./models/trained/"
 # transforms adopted from https://github.com/kuangliu/pytorch-cifar/blob/master/main.py
 transform_train = transforms.Compose([
     transforms.RandomCrop(32, padding=4),
@@ -95,55 +97,11 @@ if train_deterministic:
 # =  migrate from base model, finetune and train flow = #
 # ===================================================== #
 
-sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]
-feature_flow = [NormalAffine]*3 + [NormalGlowStep] + \
-                [NormalAffine]*3 + [NormalGlowStep] + \
-                [NormalAffine]*2 + [NormalGlowStep] + [NormalAffine]*2
+feature_flow = [NormalAffine]*3 + [NormalInvConv] + \
+                [NormalAffine]*3 + [NormalInvConv] + \
+                [NormalAffine]*2 + [NormalInvConv] + [NormalAffine]*2
 classifier_flow = [NormalAffine] + [NormalPlanar1d] + [NormalAffine]
 sto_model_cfg = feature_flow + classifier_flow
-
-def train_sto_model(sto_model, trainloader=None, testloader=None, base_model=None, num_epochs=30, device=None):
-
-    if isinstance(base_model, sto_model.DET_MODEL_CLASS):
-        sto_model.migrate_from_det_model(base_model)
-        print("Loaded weights from a base model")
-
-    det_params, sto_params = sto_model.det_and_sto_params()
-    optimizer = optim.Adam([
-                    {'params': det_params, 'lr': 2e-4},
-                    {'params': sto_params, 'lr': 2e-3}
-                ])
-
-    loss_list, ll_list, kl_list, acc_list, ece_list = [[] for _ in range(5)]
-    for epoch in range(num_epochs):
-        sto_model.train()
-        batch_loss, batch_ll, batch_kl = [[] for _ in range(3)]
-        for img, label in trainloader:
-            img, label = img.to(device), label.to(device)
-            pred = sto_model(img)
-            log_likelihood, kl = sto_model.calc_loss(pred, label)
-            loss = -log_likelihood + kl / len(trainloader.dataset)
-            
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            
-            batch_loss.append(loss.item())
-            batch_ll.append(log_likelihood.item()) 
-            batch_kl.append(kl.item()/ len(trainloader.dataset))
-        avg = lambda l: sum(l)/len(l)
-        avg_loss, avg_ll, avg_kl = avg(batch_loss), avg(batch_ll), avg(batch_kl)
-        sto_acc = compute_accuracy(sto_model, testloader, n_samples=64)
-        sto_ece = compute_ece_loss(sto_model, testloader, n_samples=64)
-        print("Sto Model Epoch {} Avg Loss {:.4f} Likelihood {:.4f} KL {:.4f} Acc {:.4f} ECE {:.4f}".format(
-                            epoch, avg_loss, avg_ll, avg_kl,sto_acc, sto_ece))
-        loss_list.append(avg_loss)
-        ll_list.append(avg_ll)
-        kl_list.append(avg_kl)
-        acc_list.append(sto_acc)
-        ece_list.append(sto_ece)
-
-    return loss_list, ll_list, kl_list, acc_list, ece_list
 
 sto_epochs = 80
 if train_deterministic == False:
@@ -156,7 +114,6 @@ if train_deterministic == False:
 sto_model = sto_vgg16(sto_cfg=sto_model_cfg).to(device)
 result1 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
 
-from test_lenet import plot_results, plot_multiple_results
 
 plot_results(result1, anno="VGG16_flow_CIFAR10")
 

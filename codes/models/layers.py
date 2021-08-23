@@ -57,7 +57,7 @@ class StoLayer(nn.Module):
             # always get new samples in training stage
             # also resample for test stage when required 
             if self.training or not self.use_fixed_samples: 
-                base_samples = self.base_dist.rsample(x.shape).to(device)
+                base_samples = self.base_dist.sample(x.shape).to(device)
                 transformed_samples, log_det_jacobian = self.norm_flow(base_samples)
                 # store mean instead of the whole tensor
                 self.mean_log_det_jacobian = log_det_jacobian.mean()
@@ -74,7 +74,7 @@ class StoLayer(nn.Module):
                 if self.stored_samples.shape==x.shape:
                     x = x * self.stored_samples
                 else: # generate new samples when the input size changes 
-                    base_samples = self.base_dist.rsample(x.shape).to(device)
+                    base_samples = self.base_dist.sample(x.shape).to(device)
                     transformed_samples, _ = self.norm_flow(base_samples)
                     x = x*transformed_samples
             

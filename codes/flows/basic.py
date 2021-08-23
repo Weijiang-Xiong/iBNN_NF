@@ -6,7 +6,7 @@ import torch.distributions as D
 import numpy as np 
 from typing import List, Tuple, Dict, Set
 
-EPS = 1e-8
+EPS = np.finfo(np.float32).eps
 
 class PlanarFlow(nn.Module):
     """ modified based on https://github.com/kamenbliznashki/normalizing_flows/blob/master/planar_flow.py

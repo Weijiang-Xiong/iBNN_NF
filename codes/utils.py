@@ -134,7 +134,7 @@ class ECELoss(nn.Module):
         plt.legend()
         plt.show()
         
-def compute_accuracy(model, dataloader, device=None, n_samples=128):
+def compute_accuracy(model, dataloader, device=None, n_samples=128, fix_samples=False):
     """ compute the classification accuracy of a model on a test set
     """
     if device==None:
@@ -145,6 +145,8 @@ def compute_accuracy(model, dataloader, device=None, n_samples=128):
         for images, labels in dataloader:
             images, labels = images.to(device), labels.to(device)
             if isinstance(model, StoModel):
+                if fix_samples:
+                    model.use_fixed_samples()
                 prob, _ = model.make_prediction(images, n_samples=n_samples)
             else:
                 prob = model(images)
@@ -153,7 +155,7 @@ def compute_accuracy(model, dataloader, device=None, n_samples=128):
             correct += (predicted == labels).sum().item()
     return correct / total
 
-def compute_ece_loss(model, dataloader, device=None, n_bins=15, n_samples=128):
+def compute_ece_loss(model, dataloader, device=None, n_bins=15, n_samples=128, fix_samples=False):
     """ compute the batched expected calibration loss 
     """ 
     if device==None:
@@ -164,6 +166,8 @@ def compute_ece_loss(model, dataloader, device=None, n_bins=15, n_samples=128):
         for images, labels in dataloader:
             images, labels = images.to(device), labels.to(device)
             if isinstance(model, StoModel):
+                if fix_samples:
+                    model.use_fixed_samples()
                 probs, _ = model.make_prediction(images, n_samples=n_samples)
             else:
                 probs = F.softmax(model(images), dim=-1) 

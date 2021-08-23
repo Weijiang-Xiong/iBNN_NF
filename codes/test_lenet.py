@@ -12,7 +12,7 @@ import torch.distributions as D
 import torch.nn.functional as F
 
 from torch.utils.data import DataLoader, Subset
-from models import LeNet, StoLeNet
+from models import LeNet, StoLeNet, StoModel
 from utils import compute_accuracy, compute_ece_loss
 from flows import NormalAffine, NormalGlowStep, NormalPlanar1d
 
@@ -109,16 +109,18 @@ Planar1d = lambda depth: [("affine", 1),
             ("element", 1, {"act":"tanh"})]
 # stochastic part for a layer, base distribution name, distribution parameters, flow config 
 NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
-NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 0.3))
+NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(2, 10))
 NormalPlanar1d = ("normal", NormalParams(0.5), Planar1d(2))
 # flow config for all layers in the model  
 sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]
 
 
-def train_sto_model(sto_model:nn.Module, trainloader=None, testloader=None, base_model=None, num_epochs=30, device=None):
-    
+def train_sto_model(sto_model:StoModel, trainloader=None, testloader=None, base_model=None, 
+                    num_epochs=30, device=None, n_samples=128, fix_samples=False):
+
     if isinstance(base_model, sto_model.DET_MODEL_CLASS):
         sto_model.migrate_from_det_model(base_model)
+        print("Loaded weights from a base model")
 
     det_params, sto_params = sto_model.det_and_sto_params()
     optimizer = optim.Adam([
@@ -145,8 +147,8 @@ def train_sto_model(sto_model:nn.Module, trainloader=None, testloader=None, base
             batch_kl.append(kl.item()/ len(trainloader.dataset))
         avg = lambda l: sum(l)/len(l)
         avg_loss, avg_ll, avg_kl = avg(batch_loss), avg(batch_ll), avg(batch_kl)
-        sto_acc = compute_accuracy(sto_model, testloader)
-        sto_ece = compute_ece_loss(sto_model, testloader)
+        sto_acc = compute_accuracy(sto_model, testloader, n_samples=n_samples, fix_samples=fix_samples)
+        sto_ece = compute_ece_loss(sto_model, testloader, n_samples=n_samples, fix_samples=fix_samples)
         print("Sto Model Epoch {} Avg Loss {:.4f} Likelihood {:.4f} KL {:.4f} Acc {:.4f} ECE {:.4f}".format(
                             epoch, avg_loss, avg_ll, avg_kl,sto_acc, sto_ece))
         loss_list.append(avg_loss)
@@ -154,7 +156,8 @@ def train_sto_model(sto_model:nn.Module, trainloader=None, testloader=None, base
         kl_list.append(avg_kl)
         acc_list.append(sto_acc)
         ece_list.append(sto_ece)
-
+        sto_model.clear_stored_samples()
+        
     return loss_list, ll_list, kl_list, acc_list, ece_list
 
 sto_epochs = 50
@@ -299,7 +302,6 @@ def plot_multiple_results(result_list, anno_list, fig_dir=None, save_name=None, 
     fig.tight_layout()
     if os.path.exists(fig_dir) and save_name!=None:
         fig.savefig(fig_dir + "/" + "{}.jpg".format(save_name))
-
 
 result_list = [result1, result2, result3, result4]
 anno_list = ["FMNIST Flow", "FMNIST no Flow", "CIFAR Flow", "CIFAR no Flow"]

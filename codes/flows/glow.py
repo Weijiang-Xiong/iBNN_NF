@@ -12,7 +12,7 @@ import torch.nn.functional as F
 import torch.distributions as D 
 from torch.utils.checkpoint import checkpoint
 
-EPS = 1e-8
+EPS = np.finfo(np.float32).eps
 
 class Actnorm(nn.Module):
     """ Actnorm layer; cf Glow section 3.1 """
@@ -126,6 +126,7 @@ class AffineCoupling(nn.Module):
         h = self.conv3(h) * self.log_scale_factor.exp()
         t = h[:,0::2,:,:]  # shift; take even channels
         s = h[:,1::2,:,:]  # scale; take odd channels
+        # s = s.exp()
         s = torch.sigmoid(s + 2.)  # at initalization, s is 0 and sigmoid(2) is near identity
 
         z_a = s * x_a + t
