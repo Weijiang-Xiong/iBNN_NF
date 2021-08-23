@@ -139,16 +139,18 @@ def compute_accuracy(model, dataloader, device=None, n_samples=128, fix_samples=
     """
     if device==None:
         device = next(model.parameters()).device
+    if isinstance(model, StoModel):
+        if fix_samples:
+            model.use_fixed_samples()
+            model.clear_stored_samples()
+        else:
+            model.no_fixed_samples()
     model.eval()
     correct, total = 0, 0
     with torch.no_grad():
         for images, labels in dataloader:
             images, labels = images.to(device), labels.to(device)
             if isinstance(model, StoModel):
-                if fix_samples:
-                    model.use_fixed_samples()
-                else:
-                    model.no_fixed_samples()
                 prob, _ = model.make_prediction(images, n_samples=n_samples)
             else:
                 prob = model(images)
@@ -162,16 +164,18 @@ def compute_ece_loss(model, dataloader, device=None, n_bins=15, n_samples=128, f
     """ 
     if device==None:
         device = next(model.parameters()).device
+    if isinstance(model, StoModel):
+        if fix_samples:
+            model.use_fixed_samples()
+            model.clear_stored_samples()
+        else:
+            model.no_fixed_samples()
     model.eval() 
     batch_ece = ECELoss(n_bins=n_bins)
     with torch.no_grad():
         for images, labels in dataloader:
             images, labels = images.to(device), labels.to(device)
             if isinstance(model, StoModel):
-                if fix_samples:
-                    model.use_fixed_samples()
-                else:
-                    model.no_fixed_samples()
                 probs, _ = model.make_prediction(images, n_samples=n_samples)
             else:
                 probs = F.softmax(model(images), dim=-1) 
