@@ -58,10 +58,6 @@ class NF_Block(nn.Module):
             samples, log_det_jacobian = m(samples)
             # might get an error if use += here (can not broadcast)
             sum_log_det_jacobian = sum_log_det_jacobian + log_det_jacobian
-            if np.isnan(log_det_jacobian.sum().detach().cpu()):
-                samples, log_det_jacobian = m(samples)
-                samples, log_det_jacobian = m(samples)
-                samples, log_det_jacobian = m(samples)
 
         return samples, sum_log_det_jacobian
     

@@ -24,7 +24,7 @@ class StoLayer(nn.Module):
         # is_stochastic indicates if a proper stochastic part has been initialized
         # and it can be used to disable stochastic part (maybe useful?)
         self.is_stochastic = False
-        self.use_fixed_samples = True # use pre-calculated transformed samples to speed up inference
+        self.use_fixed_samples = False # use pre-calculated transformed samples to speed up inference
         self.stored_samples:torch.Tensor = None  # pre-calculated transformed samples
 
     def build_flow(self, vec_len, dist_name:str, dist_params:dict, flow_cfg=None):

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import torch
 import torchvision
 import torchvision.transforms as transforms
-
+torch.autograd.set_detect_anomaly(True)
 import torch.nn as nn
 import torch.optim as optim
 import torch.distributions as D
@@ -94,23 +94,6 @@ if train_deterministic:
 # ===================================================== #
 # =  migrate from base model, finetune and train flow = #
 # ===================================================== #
-
-# parameters for base distribution 
-NormalParams = lambda scale: {"loc":1.0, "scale":scale}
-# flow configurations, List of tuple (type, depth, params)
-AffineLayer = [("affine", 1, {"learnable":True})]
-GlowStep =  lambda depth, width:[
-            ("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
-            ("planar2d", 1, {"init_sigma":0.01}),# the second stack of flows (type, depth, params)
-            ("flowstep", depth, {"width":width,"keepdim":True}),
-            ("planar2d", 1, {"init_sigma":0.01})] 
-Planar1d = lambda depth: [("affine", 1), 
-            ("planar", depth),
-            ("element", 1, {"act":"tanh"})]
-# stochastic part for a layer, base distribution name, distribution parameters, flow config 
-NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
-NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(2, 10))
-NormalPlanar1d = ("normal", NormalParams(0.5), Planar1d(2))
 # flow config for all layers in the model  
 sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]
 
