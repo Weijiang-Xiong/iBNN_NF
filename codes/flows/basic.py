@@ -6,7 +6,7 @@ import torch.distributions as D
 import numpy as np 
 from typing import List, Tuple, Dict, Set
 
-EPS:float = np.finfo(np.float32).eps
+EPS = np.finfo(np.float32).eps
 
 class PlanarFlow(nn.Module):
     """ modified based on https://github.com/kamenbliznashki/normalizing_flows/blob/master/planar_flow.py
@@ -25,7 +25,7 @@ class PlanarFlow(nn.Module):
         if normalize_u:
             wtu = (self.w @ self.v.t()).squeeze()
             m_wtu = - 1 + torch.log1p(wtu.exp())
-            v_hat = self.v + (m_wtu - wtu) * self.w / (self.w @ self.w.t())
+            v_hat = self.v + (m_wtu - wtu) * self.w / (self.w @ self.w.t() + EPS)
 
         # compute transform
         wtz_plus_b = z @ self.w.t() + self.b
@@ -88,7 +88,7 @@ class PlanarFlow2d(nn.Module):
         if normalize_u:
             wtu = (self.w @ self.v.t()).squeeze()
             m_wtu = - 1 + torch.log1p(wtu.exp())
-            v_hat = self.v + (m_wtu - wtu) * self.w / (self.w @ self.w.t())
+            v_hat = self.v + (m_wtu - wtu) * self.w / (self.w @ self.w.t() + EPS)
         
         # treat z as N*H*W different length-C vectors, apply planar transform to each of them
         # which is equivalent to a 2d convolution
@@ -129,7 +129,7 @@ class ElementFlow(nn.Module):
         """
         
         f_z = self.act(x)
-        log_abs_det_jacobian = torch.sum(torch.log(torch.abs(self.der(x))), dim=1)
+        log_abs_det_jacobian = torch.sum(torch.log(torch.abs(self.der(x)) + EPS), dim=1)
         return f_z, log_abs_det_jacobian
     
 

@@ -70,16 +70,27 @@ class NF_Block(nn.Module):
 NormalParams = lambda scale: {"loc":1.0, "scale":scale}
 # flow configurations, List of tuple (type, depth, params)
 AffineLayer = [("affine", 1, {"learnable":True})]
-GlowStep =  lambda depth, width:[
+PlanarGlow =  lambda depth, width:[
             ("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
             ("planar2d", 2, {"init_sigma":0.01}),# the second stack of flows (type, depth, params)
             ("flowstep", depth, {"width":width,"keepdim":True}),
             ("planar2d", 2, {"init_sigma":0.01})] 
+GlowStep =  lambda depth, width:[
+            ("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
+            ("flowstep", depth, {"width":width,"keepdim":True}),# the second stack of flows (type, depth, params)
+            ] 
 Planar1d = lambda depth: [("affine", 1), 
                           ("planar", depth)]
+PlanarInvConv = lambda depth :[
+            ("affine", 1, {"learnable":True}), # the first stack of flows (type, depth, params)
+            ("planar2d", 2, {"init_sigma":0.01}),# the second stack of flows (type, depth, params)
+            ("invconv", depth, {"keepdim":True}),
+            ("planar2d", 2, {"init_sigma":0.01})] 
 # stochastic part for a layer, base distribution name, distribution parameters, flow config 
 NormalAffine = ("normal", NormalParams(0.5), AffineLayer)
 NormalGlowStep = ("normal", NormalParams(0.5), GlowStep(3, 0.25))
 NormalPlanar1d = ("normal", NormalParams(0.5), Planar1d(2))
+NormalInvConv = ("normal", NormalParams(0.5), PlanarInvConv(3))
+NormalPlanarGlow = ("normal", NormalParams(0.5), PlanarGlow(3, 0.25))
 # flow config for all layers in the model 
 example_sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, NormalAffine]

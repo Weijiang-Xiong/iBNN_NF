@@ -100,6 +100,11 @@ class StoModel(nn.Module):
         for layer in self.sto_layers:
             layer.use_fixed_samples = False
     
+    def clear_stored_samples(self):
+        """ remember to clear the precomptued samples whenever the model updates
+        """
+        for layer in self.sto_layers:
+            layer.stored_samples = None
       
 class LogisticRegression(nn.Module):
     

@@ -134,11 +134,17 @@ class ECELoss(nn.Module):
         plt.legend()
         plt.show()
         
-def compute_accuracy(model, dataloader, device=None, n_samples=128):
+def compute_accuracy(model, dataloader, device=None, n_samples=128, fix_samples=False):
     """ compute the classification accuracy of a model on a test set
     """
     if device==None:
         device = next(model.parameters()).device
+    if isinstance(model, StoModel):
+        if fix_samples:
+            model.use_fixed_samples()
+            model.clear_stored_samples()
+        else:
+            model.no_fixed_samples()
     model.eval()
     correct, total = 0, 0
     with torch.no_grad():
@@ -153,11 +159,17 @@ def compute_accuracy(model, dataloader, device=None, n_samples=128):
             correct += (predicted == labels).sum().item()
     return correct / total
 
-def compute_ece_loss(model, dataloader, device=None, n_bins=15, n_samples=128):
+def compute_ece_loss(model, dataloader, device=None, n_bins=15, n_samples=128, fix_samples=False):
     """ compute the batched expected calibration loss 
     """ 
     if device==None:
         device = next(model.parameters()).device
+    if isinstance(model, StoModel):
+        if fix_samples:
+            model.use_fixed_samples()
+            model.clear_stored_samples()
+        else:
+            model.no_fixed_samples()
     model.eval() 
     batch_ece = ECELoss(n_bins=n_bins)
     with torch.no_grad():
