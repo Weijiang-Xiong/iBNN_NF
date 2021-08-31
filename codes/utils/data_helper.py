@@ -2,8 +2,9 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, Subset
+from typing import Tuple
 
-def prepare_dataset(data_dir:str, data_name:str, train_bs:int, test_bs:int, subset:int=None):
+def prepare_dataset(data_dir:str, data_name:str, train_bs:int, test_bs:int, subset:int=None) -> Tuple[DataLoader, DataLoader]:
     """ prepare trainloader, testloader
     Args:
         data_dir (str): the directory to store dataset

@@ -91,13 +91,14 @@ sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, Nor
 sto_epochs = 50
 sto_model = StoLeNet(sto_cfg=sto_model_cfg, colored=False).to(device)
 result1 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
-
+torch.save(sto_model.state_dict(), "{}/{}".format(weight_dir, "StoLeNet_flow_FMNIST.pth"))
 plot_results(result1, anno="StoLeNet_flow_FMNIST", fig_dir=fig_dir)
 
 sto_model_cfg = [NormalAffine, NormalAffine, NormalAffine, NormalAffine, NormalAffine]
 sto_model = StoLeNet(sto_cfg=sto_model_cfg, colored=False).to(device)
 result2 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
 plot_results(result2, anno="StoLeNet_no_flow_FMNIST", fig_dir=fig_dir)
+torch.save(sto_model.state_dict(), "{}/{}".format(weight_dir, "StoLeNet_no_flow_FMNIST.pth"))
 
 print("Experiments with CIFAR10")
 # transforms adopted from https://github.com/kuangliu/pytorch-cifar/blob/master/main.py
@@ -170,12 +171,14 @@ sto_model_cfg = [NormalAffine, NormalGlowStep, NormalAffine, NormalPlanar1d, Nor
 sto_model = StoLeNet(sto_cfg=sto_model_cfg, colored=True).to(device)
 result3 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
 plot_results(result3, anno="StoLeNet_flow_CIFAR10", fig_dir=fig_dir)
+torch.save(sto_model.state_dict(), "{}/{}".format(weight_dir, "StoLeNet_flow_CIFAR10.pth"))
 
 
 sto_model_cfg = [NormalAffine, NormalAffine, NormalAffine, NormalAffine, NormalAffine]
 sto_model = StoLeNet(sto_cfg=sto_model_cfg, colored=True).to(device)
 result4 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
 plot_results(result4, anno="StoLeNet_no_flow_CIFAR10", fig_dir=fig_dir)
+torch.save(sto_model.state_dict(), "{}/{}".format(weight_dir, "StoLeNet_no_flow_CIFAR10.pth"))
 
 result_list = [result1, result2, result3, result4]
 anno_list = ["FMNIST Flow", "FMNIST no Flow", "CIFAR Flow", "CIFAR no Flow"]

@@ -27,14 +27,14 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = True
 
 # define data folder
-data_dir = "./data"
-fig_dir = "./figs"
-weight_dir = "./models/trained/"
+data_dir = "codes/data"
+fig_dir = "codes/figs"
+weight_dir = "codes/models/trained/"
 
-trainloader, testloader = prepare_dataset(data_dir, "cifar10", 128, 16)
+trainloader, testloader = prepare_dataset(data_dir, "cifar10", train_bs=128, test_bs=16, subset=256)
 
 if train_deterministic:
-    num_epochs = 30
+    num_epochs = 3
     base_model = vgg16().to(device)
     criterion = nn.CrossEntropyLoss() 
     optimizer = optim.SGD(base_model.parameters(), lr=0.001, momentum=0.9)
@@ -61,7 +61,7 @@ if train_deterministic:
         loss_list.append(avg_loss)
         acc_list.append(base_acc)
         ece_list.append(base_ece)
-        torch.save(base_model.state_dict(), "{}/{}".format(weight_dir, "base_vgg_weights.pth"))
+    torch.save(base_model.state_dict(), "{}/{}".format(weight_dir, "base_vgg_weights.pth"))
         
 if train_deterministic:
     fig = plt.figure(figsize=(18, 5))
@@ -88,7 +88,7 @@ feature_flow = [NormalAffine]*3 + [NormalInvConv] + \
 classifier_flow = [NormalAffine] + [NormalPlanar1d] + [NormalAffine]
 sto_model_cfg = feature_flow + classifier_flow
 
-sto_epochs = 80
+sto_epochs = 3
 if train_deterministic == False:
     try:
         base_model = vgg16().load_state_dict(torch.load("{}/{}".format(weight_dir, "base_vgg_weights.pth")))
@@ -97,16 +97,17 @@ if train_deterministic == False:
         base_model = vgg16()
 
 sto_model = sto_vgg16(sto_cfg=sto_model_cfg).to(device)
-result1 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
-
-
-plot_results(result1, anno="VGG16_flow_CIFAR10")
+result1 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, 
+                          device=device, n_samples=10, fix_samples=True)
+torch.save(sto_model.state_dict(), "{}/{}".format(weight_dir, "sto_vgg_flow.pth"))
+plot_results(result1, anno="VGG16_flow_CIFAR10", fig_dir=fig_dir)
 
 sto_model_cfg = [NormalAffine]*16
 sto_model = sto_vgg16(sto_cfg=sto_model_cfg).to(device)
-result2 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, device=device)
-plot_results(result2, anno="no_flow")
-
+result2 = train_sto_model(sto_model, trainloader, testloader, base_model, num_epochs=sto_epochs, 
+                          device=device, n_samples=10, fix_samples=True)
+torch.save(sto_model.state_dict(), "{}/{}".format(weight_dir, "sto_vgg_no_flow.pth"))
+plot_results(result2, anno="VGG16_no_flow_CIFAR10", fig_dir=fig_dir)
 
 result_list = [result1, result2]
 anno_list = ["VGG_flow", "VGG_no_flow"]
