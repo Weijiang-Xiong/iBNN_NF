@@ -8,3 +8,4 @@ codes/models/trained/*
 *.bbl
 *.blg
 *.log
+*_minted*
