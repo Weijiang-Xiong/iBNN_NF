@@ -153,6 +153,9 @@
 % syntax: \newenvironment{name}{begin command}{endcommand}
 \newcounter{rSection}
 \newcounter{rSubsection}[rSection]
+% update the subsection counter to sec_counter.subsec_counter
+% so it works correctly in cross references
+\renewcommand{\therSubsection}{\therSection.\arabic{rSubsection}} 
 
 \newenvironment{rSection}[1]{ % 1 input argument - section name
 \refstepcounter{rSection}
@@ -168,7 +171,7 @@
 \newenvironment{rSubsection}[1]{ % 1 input argument - section name
   \refstepcounter{rSubsection}
   \begin{spacing}{\lineSpace}
-	{\bf\therSection.\therSubsection~#1}
+	{\bf\therSubsection~#1}
 
   }{
 \end{spacing}
@@ -297,6 +300,7 @@ Unfortunately, aleatoric uncertainty is inherent in data, and can not be explain
 \end{rSubsection}
 
 \begin{rSubsection}{Motivation for Modelling Uncertainties}
+\label{subsec: motivation}
 In this project, we study the uncertainty modelling problem in the context of image classification, a basic task in computer vision. 
 The motivation comes from two problems in deep neural networks. 
 
@@ -357,6 +361,8 @@ Then, the base samples $\mathbf{z}_0$ will go through a stack of Normalizing Flo
 After that, the transformed samples will augment the output of the previous layer, i.e. $\mathbf{f}_{l-1}$, through element-wise multiplication.
 Finally, we put the augmented input $\mathbf{z}_l \circ \mathbf{f}_{l-1}$ into the deterministic component (Det. Compo) of that stochastic layer, which is literally a deterministic layer. 
 
+To represent the flow based distribution, we will need a number of samples.
+Therefore an input image will be augmented by different transformed samples, and the output will also consists of different samples, from which we can learn the output uncertainty. 
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{figs/general structure.pdf}
@@ -367,6 +373,7 @@ Finally, we put the augmented input $\mathbf{z}_l \circ \mathbf{f}_{l-1}$ into t
 
 Notably, we assume that each layer has its own stochastic part, which is independent from other layers.
 Besides, the deterministic and stochastic part could be trained separately, and we can even migrate the weights for deterministic part from a pre-trained model. 
+From this perspective, we can also regard the stochastic part as an extension to the original neural network. 
 
 \begin{rSubsection}{Properties Normalizing Flows}
 In probabilistic modeling and inference, we often need to find a balance between expressiveness and tractability.
@@ -560,21 +567,125 @@ In summary, with Equation~\ref{equ: final elbo} and~\ref{equ: kl div final}, we 
 \clearpage
 
 \begin{rSection}{Experiments and Analysis}
-	Expected Calibration Loss
+\textbf{Expected Calibration Error (ECE)}~\cite{guo2017calibration} measures how much the model confidence deviates from the test accuracy, and we will use this metric in our experiments to evaluate the calibration of our models. 
+For detailed derivation, please refer to~\cite{guo2017calibration}, but here we provide a short description. 
+Generally, the ECE is a weighted average over the absolute difference between the confidence and accuracy, and the weight is the proportion of samples whose confidence lies within a range.
+After obtaining the prediction results for all data, we first evenly divide the interval $[0, 1]$ into $n$ bins, and assign the results to these bins according to the prediction confidence.
+Then we calculate the average confidence $Conf$ and actual classification accuracy $Acc$ for each bin, and the ECE could be expressed by:
+\begin{equation}
+	ECE = \sum_{i=1}^n \frac{1}{B_i}|Acc - Conf|, 
+\end{equation}
+where $B_i$ is the percentage of samples in the $i$-th bin. 
+
+Throughout the experiments, we will compare the performance of a basic neural network and its corresponding (flow-based) stochastic variant.
+That is, the stochastic model is obtained by extending one or more layers in the basic model into stochastic layers. 
+Meanwhile, the deterministic parts of the stochastic model are directly migrated from the basic model. 
+
 \begin{rSubsection}{2D Classification Example}
+In this section, we demonstrate the effect of flow with a simple 2D classification example.
+The three plots in the first row show the classification results, sample percentage for each confidence range, and the confidence-accuracy gap of a basic 2-layer MLP model.
+And the second row shows the corresponding properties of a 2-layer MLP with stochastic layers. 
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{figs/2d_classification_ece_acc.png}
+	\caption{Classification example for basic MLP (first row) and stochastic MLP (second row)}
+	\label{fig: mlp classification}
+\end{figure}
+
+The upper left plot in Figure~\ref{fig: mlp classification} shows the data clusters and the decision boundary of a basic 2-layer MLP. 
+The red clusters have some overlap with the purple cluster, and the color of the grid points indicates the classification results.
+We can see the grid points near the purple cluster are assigned blue color, while the rest are assigned to red color.
+The decision boundary is a curved line that roughly splits the two classes, and the classification accuracy is 95.3\%.
+Meanwhile, the lower left plot shows the results from a 2-layer stochastic MLP.
+A clear difference is a measurement of uncertainty, which is indicated by the size of the grid points. 
+Since the stochastic model is migrated from a deterministic one, the stochastic boundary is very close to the deterministic one. 
+From the plot, we observe reasonable high uncertainty near the boundary, and low uncertainty else where. 
+
+In the plots for confidence-accuracy gap, the red line represents the ideal case, where the confidence perfectly matches the actual accuracy.
+From the plots, we observe better calibration results in the stochastic model (lower right plot).
+The main reason is the stochastic model correctly classified over 80\% of data points, with matching confidence. 
+As a result, the deterministic MLP has an ECE at 0.094, while the stochastic model has only 0.009.
+
+To investigate the effect of flow, we compare the training progress of stochastic MLPs with different flow lengths. 
+Figure~\ref{fig: mlp with different flows} shows the trends of ELBO, likelihood and KL divergence at each training epochs.
+For this example, we use planar flow, and only change the length.
+As a special case, length 0 means the stochastic part has merely a learnable Gaussian distribution.
+From the plots, we observe that flow length 12 results in highest likelihood and ELBO, and flow length 0 gives lowest values.
+Therefore, the a flow part with reasonable length (12 here) could improve the model performance. 
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{figs/2d_classification_flow_len.png}
+	\caption{Training progress of stochastic MLPs with different flow lengths ($x$ axis is epoch)}
+	\label{fig: mlp with different flows}
+\end{figure}
 
 \end{rSubsection}
 
+
+
 \begin{rSubsection}{Image Classification}
-	
+In this section, we compare flow-based LeNet~\cite{lecun1998gradient} and VGG~\cite{simonyan2014very} with their deterministic baseline.
+Since images are high-dimensional data, we don't have good methods to visualize the output uncertainty.
+But we can still observe the training progress in Figure~\ref{fig: sto lenet} and Figure~\ref{fig: sto vgg}.
+
+Figure~\ref{fig: sto lenet} presents the training progress of LeNet-based models on FashionMnist~\cite{xiao2017fashion} and CIFAR-10~\cite{krizhevsky2009CIFAR}. 
+The three plots in the first row shows the trend of training losses, i.e., ELBO, log likelihood and KL Divergence. 
+Compared to the "no flow" version, the flow based model has higher data likelihood, higher KL divergence and larger ELBO for both datasets. 
+Same as before, the models labeled with "no flow" has only a learnable Gaussian distribution in the stochastic part of each layer.
+Higher data likelihood means the flow-based models can better fit the data, and higher KL divergence indicates that the flow based posterior deviates farther from the prior (Gaussian here), compared to the learnable Gaussian. 
+
+The two plots in the second row records the testing accuracy and ECE in each training epoch. 
+Both the flow-based model and its "no flow" version has outperformed the deterministic baseline after a few training epochs.
+Compared to the baseline, the improvements of stochastic models on CIFAR-10 is more evident than that on FashionMnist.
+A possible reason is the capacity basic LeNet is enough to handle the complexity of FashionMnist (nearly 90\% baseline accuracy).
+Therefore the extra capacity introduced by the flows won't have significant effects.
+If we move to CIFAR-10, the effects of flows begin to manifest as the classification problem becomes more difficult.
+And the flow based model has about 2\% higher accuracy than the "no flow" version. 
+However, the expected calibration loss is more unpredictable.
+While the baseline model is nicely calibrated, with ~1.5\% ECE on both datasets, the stochastic models could have even higher ECE.
+
+Besides, the input augmentation in our stochastic layer has similar mechanisms to Dropout.
+But the difference is, dropout applies binary random variable to the input, while our stochastic layer adopts real-valued augmentation. 
+Since the basic LeNet does not have dropout layers, we also extended it with dropout and recorded the best accuracy and ECE as another baseline. 
+As a result, dropout didn't improve the classification accuracy, and the ECE (up to 5\%) is also higher than the basic LeNet.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{figs/stolenet results.png}
+	\caption{Training progress of basic and stochastic LeNet ($x$ axis is epoch)}
+	\label{fig: sto lenet}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{figs/stovgg results.png}
+	\caption{Training progress of basic and stochastic VGG16 ($x$ axis is epoch)}
+	\label{fig: sto vgg}
+\end{figure}
+
+Figure~\ref{fig: sto vgg} shows the training progress of basic and stochastic VGG16.
+From the plots, we can see the flow part has almost no effect, despite the fact that both stochastic models has higher accuracies and lower ECE compared to baseline. 
+Again, these experiment results are also in favour of our conjecture above.
+The basic VGG16 model has enough capacity itself, because it can reach a high testing accuracy (93.15\%) on CIFAR10~\cite{sehwanjoo2020vggcifar10}.
+Therefore, the flow part, which introduces extra complexity, won't have substantial effect on VGG16. 
+Another evidence is the KL divergence in the flow based model, which decreases as training goes on. 
+This trend means the training process is gradually leading the flow posterior back to the prior, which indicates the flow part is not necessarily helpful for higher classification accuracy.
+
 \end{rSubsection}
 
 \end{rSection}
 
 \begin{rSection}{Implementation Details}
-	how did you code up all these stuff? 
+
+	\textbf{Flow Blocks}.
+
+	how did you code up the flow part? what flows are used for stolenet and stovgg? 
 
 	mention how I implemented 2d planar here.
+
+	shall we multiply the glow log det by h*w?
 
 	also say the number of samples for training and testing 
 	
@@ -582,7 +693,7 @@ In summary, with Equation~\ref{equ: final elbo} and~\ref{equ: kl div final}, we 
 
 \begin{rSection}{Discussions}
 
-	unsolved problems
+	unsolved problems: lack of benchmark and metrics
 
 	need a good way to make use of the distribution, right now we just take the mean and variance 
 
@@ -594,132 +705,132 @@ In summary, with Equation~\ref{equ: final elbo} and~\ref{equ: kl div final}, we 
 	
 \end{rSection}
 
-\begin{rSection}{The first Problem}
-	You may briefly state how you solve this problem here
-	\begin{rSubsection}{The first part of the problem}
-		in the first subsection, build a list with \mintinline{latex}{\begin{rlisting}}
-		\begin{rlisting}
-			\item just write something random
-			\item another random line
-		\end{rlisting}
-		build an ordered list with \mintinline{latex}{\begin{renum}}
-			\begin{renum}
-				\item just write something random
-				\item another random line
-			\end{renum}
-	\end{rSubsection}
+% \begin{rSection}{The first Problem}
+% 	You may briefly state how you solve this problem here
+% 	\begin{rSubsection}{The first part of the problem}
+% 		in the first subsection, build a list with \mintinline{latex}{\begin{rlisting}}
+% 		\begin{rlisting}
+% 			\item just write something random
+% 			\item another random line
+% 		\end{rlisting}
+% 		build an ordered list with \mintinline{latex}{\begin{renum}}
+% 			\begin{renum}
+% 				\item just write something random
+% 				\item another random line
+% 			\end{renum}
+% 	\end{rSubsection}
 
-	\begin{rSubsection}{The second part of the problem}
-		in the second subsection, insert a figure
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=0.45\textwidth]{example-image-a}
-			\caption{Add captions here}
-		\end{figure}
+% 	\begin{rSubsection}{The second part of the problem}
+% 		in the second subsection, insert a figure
+% 		\begin{figure}[H]
+% 			\centering
+% 			\includegraphics[width=0.45\textwidth]{example-image-a}
+% 			\caption{Add captions here}
+% 		\end{figure}
 
-		Two figures with individual numbering and caption. Comment out \mintinline{text}{\caption{}} to remove individual caption for subfigures.
-		\begin{figure}[H]
-			\centering
-			\begin{subfigure}[t]{0.45\textwidth}
-			  \centering	
-			  \includegraphics[width=\textwidth]{example-image-a}
-			  \caption{some comments on this figure}
-			\end{subfigure}
-			\qquad
-			\begin{subfigure}[t]{0.45\textwidth}
-			  \includegraphics[width=\textwidth]{example-image-a}
-			  \caption{some other comments}
-			\end{subfigure}
-			\caption{Geometrical figures}
-		  \end{figure}
+% 		Two figures with individual numbering and caption. Comment out \mintinline{text}{\caption{}} to remove individual caption for subfigures.
+% 		\begin{figure}[H]
+% 			\centering
+% 			\begin{subfigure}[t]{0.45\textwidth}
+% 			  \centering	
+% 			  \includegraphics[width=\textwidth]{example-image-a}
+% 			  \caption{some comments on this figure}
+% 			\end{subfigure}
+% 			\qquad
+% 			\begin{subfigure}[t]{0.45\textwidth}
+% 			  \includegraphics[width=\textwidth]{example-image-a}
+% 			  \caption{some other comments}
+% 			\end{subfigure}
+% 			\caption{Geometrical figures}
+% 		  \end{figure}
 		
-		Text with picture left-right structure, remember to keep the blank line below (maybe not very useful)
+% 		Text with picture left-right structure, remember to keep the blank line below (maybe not very useful)
 
-		\begin{figure}[H]
-			\begin{minipage}[b]{0.5\linewidth} % use [c] here makes the text vertically centered
-				\centering
-				\includegraphics[width=\textwidth]{example-image-a}
-				\caption{some comments}
-			\end{minipage}%
-			\begin{minipage}[b]{0.5\linewidth} % use [c] here makes the text vertically centered
-				\centering
-				\begin{tabular}{|c|c|} 
-					\hline
-					aa & bb \\ \hline
-					cc & dd \\ \hline
-				\end{tabular}
-				\captionof{table}{Table caption}
-			\end{minipage}
-		\end{figure}
+% 		\begin{figure}[H]
+% 			\begin{minipage}[b]{0.5\linewidth} % use [c] here makes the text vertically centered
+% 				\centering
+% 				\includegraphics[width=\textwidth]{example-image-a}
+% 				\caption{some comments}
+% 			\end{minipage}%
+% 			\begin{minipage}[b]{0.5\linewidth} % use [c] here makes the text vertically centered
+% 				\centering
+% 				\begin{tabular}{|c|c|} 
+% 					\hline
+% 					aa & bb \\ \hline
+% 					cc & dd \\ \hline
+% 				\end{tabular}
+% 				\captionof{table}{Table caption}
+% 			\end{minipage}
+% 		\end{figure}
 
-		Maybe you need to cite something \cite{danelljan2014BMVC}, and you can specify the IEEE style by using in the end \mintinline{text}{\bibliographystyle{ieee_fullname}}, Elsevier Style with \mintinline{text}{elsarticle-num} and Harvard Style with \mintinline{text}{elsarticle-harv0}.
-		After this, please compile the tex file with \mintinline{text}{pdflatex->bibtex->pdflatex->pdflatex}.
-		If the main text has not cited anything, just use \mintinline{text}{pdflatex}
-	\end{rSubsection}
-\end{rSection}
+% 		Maybe you need to cite something \cite{danelljan2014BMVC}, and you can specify the IEEE style by using in the end \mintinline{text}{\bibliographystyle{ieee_fullname}}, Elsevier Style with \mintinline{text}{elsarticle-num} and Harvard Style with \mintinline{text}{elsarticle-harv0}.
+% 		After this, please compile the tex file with \mintinline{text}{pdflatex->bibtex->pdflatex->pdflatex}.
+% 		If the main text has not cited anything, just use \mintinline{text}{pdflatex}
+% 	\end{rSubsection}
+% \end{rSection}
 
 
-Sometimes we need to start a new page with \mintinline{latex}{\newpage} for a new question.
-\newpage
-\begin{rSection}{A new section for a new problem}
-\begin{rSubsection}{the first step}
-	this is for inserting codes with or without a bounding box, remember to use \mintinline{text}{PDFLaTeX}
+% Sometimes we need to start a new page with \mintinline{latex}{\newpage} for a new question.
+% \newpage
+% \begin{rSection}{A new section for a new problem}
+% \begin{rSubsection}{the first step}
+% 	this is for inserting codes with or without a bounding box, remember to use \mintinline{text}{PDFLaTeX}
 
-	\begin{minted}[tabsize=4, bgcolor=bg, autogobble, escapeinside=||, frame=single]{python}
-		import numpy as np
-		def some_function(some_variables):
-			pass
-		# even put an under line in codes
-		|\ul{undelrine}| 
-	  \end{minted}
-	You will need to explain the codes a bit.
+% 	\begin{minted}[tabsize=4, bgcolor=bg, autogobble, escapeinside=||, frame=single]{python}
+% 		import numpy as np
+% 		def some_function(some_variables):
+% 			pass
+% 		# even put an under line in codes
+% 		|\ul{undelrine}| 
+% 	  \end{minted}
+% 	You will need to explain the codes a bit.
 
-	\begin{mdframed}[backgroundcolor=bg]
-	\begin{minted}[tabsize=4, autogobble, escapeinside=||]{python}
-		import numpy as np
-		def some_function(some_variables):
-			pass
-	\end{minted}
-	\end{mdframed}
-	You will need to explain the codes a bit.
-\end{rSubsection}
+% 	\begin{mdframed}[backgroundcolor=bg]
+% 	\begin{minted}[tabsize=4, autogobble, escapeinside=||]{python}
+% 		import numpy as np
+% 		def some_function(some_variables):
+% 			pass
+% 	\end{minted}
+% 	\end{mdframed}
+% 	You will need to explain the codes a bit.
+% \end{rSubsection}
 
-\begin{rSubsection}{the second step}
-	We may need to type matrix equations 
-	\begin{equation}
-		T = 
-		\left[\begin{matrix} m_u & 0 & 0 \\0 & m_v & 0 \\ 0 & 0 & 1 \end{matrix}\right]
-		\left[\begin{matrix} 1 & 0 & u_{0} \\0 & 1 & v_{0} \\ 0 & 0 & 1 \end{matrix}\right]
-		\left[\begin{matrix} f & 0 & 0 \\0 & f & 0 \\ 0 & 0 & 1 \end{matrix}\right]
-		=
-		\left[\begin{matrix} fm_u & 0 & u_0 \\0 & fm_v & v_0 \\ 0 & 0 & 1 \end{matrix}\right].
-	\end{equation}
-	If you don't want the auto numbering 
-	$$
-		T = \left[\begin{matrix} m_u & 0 & 0 \\0 & m_v & 0 \\ 0 & 0 & 1 \end{matrix}\right]
-		\left[\begin{matrix} 1 & 0 & u_{0} \\0 & 1 & v_{0} \\ 0 & 0 & 1 \end{matrix}\right]
-		\left[\begin{matrix} f & 0 & 0 \\0 & f & 0 \\ 0 & 0 & 1 \end{matrix}\right]
-		=
-		\left[\begin{matrix} fm_u & 0 & u_0 \\0 & fm_v & v_0 \\ 0 & 0 & 1 \end{matrix}\right].
-	$$
-	or build a table to present data
-	\begin{table}[H]
-		\centering
-		\caption{Some random numbers}
-		\begin{tabular}{c|cccc}
-			\toprule
-			($\alpha$, $u$)& 0.7 & 0.8 & 0.9 & 1 \\
-			\midrule
-			1 & 25.3183 & 25.5442& 25.7192& 25.8589 \\
-			2 & 36.8104 & 37.6098 &38.2343 & 38.7359\\
-			3 & 44.1152 & 46.6144 & 48.6152 & {50.2597} \\
-			4 & 39.3190& 44.5661&\textcolor{red}{48.3255} &\textcolor{red}{51.3635} \\
-			5 & 18.0562& 35.4232 &42.3844 &47.0238 \\
-			\bottomrule
-		\end{tabular}
-	\end{table}
-\end{rSubsection}
-\end{rSection}
+% \begin{rSubsection}{the second step}
+% 	We may need to type matrix equations 
+% 	\begin{equation}
+% 		T = 
+% 		\left[\begin{matrix} m_u & 0 & 0 \\0 & m_v & 0 \\ 0 & 0 & 1 \end{matrix}\right]
+% 		\left[\begin{matrix} 1 & 0 & u_{0} \\0 & 1 & v_{0} \\ 0 & 0 & 1 \end{matrix}\right]
+% 		\left[\begin{matrix} f & 0 & 0 \\0 & f & 0 \\ 0 & 0 & 1 \end{matrix}\right]
+% 		=
+% 		\left[\begin{matrix} fm_u & 0 & u_0 \\0 & fm_v & v_0 \\ 0 & 0 & 1 \end{matrix}\right].
+% 	\end{equation}
+% 	If you don't want the auto numbering 
+% 	$$
+% 		T = \left[\begin{matrix} m_u & 0 & 0 \\0 & m_v & 0 \\ 0 & 0 & 1 \end{matrix}\right]
+% 		\left[\begin{matrix} 1 & 0 & u_{0} \\0 & 1 & v_{0} \\ 0 & 0 & 1 \end{matrix}\right]
+% 		\left[\begin{matrix} f & 0 & 0 \\0 & f & 0 \\ 0 & 0 & 1 \end{matrix}\right]
+% 		=
+% 		\left[\begin{matrix} fm_u & 0 & u_0 \\0 & fm_v & v_0 \\ 0 & 0 & 1 \end{matrix}\right].
+% 	$$
+% 	or build a table to present data
+% 	\begin{table}[H]
+% 		\centering
+% 		\caption{Some random numbers}
+% 		\begin{tabular}{c|cccc}
+% 			\toprule
+% 			($\alpha$, $u$)& 0.7 & 0.8 & 0.9 & 1 \\
+% 			\midrule
+% 			1 & 25.3183 & 25.5442& 25.7192& 25.8589 \\
+% 			2 & 36.8104 & 37.6098 &38.2343 & 38.7359\\
+% 			3 & 44.1152 & 46.6144 & 48.6152 & {50.2597} \\
+% 			4 & 39.3190& 44.5661&\textcolor{red}{48.3255} &\textcolor{red}{51.3635} \\
+% 			5 & 18.0562& 35.4232 &42.3844 &47.0238 \\
+% 			\bottomrule
+% 		\end{tabular}
+% 	\end{table}
+% \end{rSubsection}
+% \end{rSection}
 
 % \bibliographystyle{ieee_fullname}
 \bibliographystyle{elsarticle-num}
