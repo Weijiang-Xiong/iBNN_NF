@@ -180,13 +180,13 @@
 
 
 \newenvironment{rlisting}{
-  \vspace{-0.5em}
+  \vspace{-0.25em}
   \begin{itemize}
 	\itemsep -0.25em \vspace{-0.5em}
 }{
 	\vspace{-0.5em}
 \end{itemize}
-\vspace{-0.5em}
+\vspace{-0.25em}
 }
 
 \newenvironment{renum}{
@@ -260,23 +260,24 @@ More specifically, for supervised learning tasks, the dataset usually consists o
 Thus, the problem can be described as: choosing an optimal set of parameters $\mathbf{w}$ for the model $\mathcal{M}$, so the model prediction $\mathcal{M}_{\mathbf{w}}(\mathbf{X})$ is closest to the label $\mathbf{y}$ under a distance measurement (loss function) $\mathcal{L}$.
 
 While the optimizing problem of parameter $\mathbf{w}$ can be tackled by error backpropagation and gradient-based approaches, such as ADAM~\cite{kingma2014adam}, there is no guarantee of an optimal parameter set $\mathbf{w}$.
-On the contrary, in practice, we will randomly initialize $\mathbf{w}$ and then start an learning algorithm.
+On the contrary, in practice, we will randomly initialize $\mathbf{w}$ and then start a learning algorithm.
 And it's often the case that the learning algorithm behaves stably, which means if we run the same training program multiple times, the different obtained models will have comparable training losses after several epochs, and also similar accuracies on test data. 
-Those models have different initial parameters, and will end up having different weights after learning process.
+Those models have different initial parameters, and will end up having different weights after the learning process.
 
-A question that rises is how to make use of those models.
+A question that arises is how to make use of those models.
 In practice, we often pick the one with highest test accuracy, even if those models have almost equal performance.
 However, with the accuracy on the limited testing data, we are not sure whether the picked model is the \textit{truly best} model that correctly models the true data-generating process. 
 Therefore, in Bayesian Deep Learning, we model this uncertainty with a probability distribution over the weights $p(\mathbf{w} | \mathcal{D})$, which is known as \textit{epistemic uncertainty} or simply \textit{weight uncertainty}. 
 And this kind of neural network is known as Bayesian Neural Network (BNN), which marginalize over the weight posterior to provide predictive distributions~\cite{wilson2020bayesian}:
 \begin{equation}
-	p(\mathbf{y} \mid \mathbf{X}, \mathcal{D})
-	=
-	\int p(\mathbf{y} \mid \mathbf{X}, \mathbf{w}) p(\mathbf{w} \mid \mathcal{D}) d \mathbf{w}.
+    p(\mathbf{y} \mid \mathbf{X}, \mathcal{D})
+    =
+    \int p(\mathbf{y} \mid \mathbf{X}, \mathbf{w}) p(\mathbf{w} \mid \mathcal{D}) d \mathbf{w}.
 \end{equation}
 As we obtain more data, the results on the dataset will be more reliable, and thus weight uncertainty could be explained away with enough data~\cite{kendall2017uncertainties}.
 
-On the other hand, real-world data are often captured by sensors, for example, images are taken by cameras and audio waves are recorded by microphones. 
+On the other hand, real-world data are often captured by sensors.
+For example, images are taken by cameras, and audio waves are recorded by microphones. 
 As a result, sensor noise and motion noise will lead to uncertainties in recorded data. 
 Figure \ref{fig: intro example} (a) shows an example of motion blur, where the images of some moving people become unclear.
 This kind of uncertainty is known as \textit{aleatoric uncertainty} or simply \textit{input uncertainty}.
@@ -301,23 +302,22 @@ Unfortunately, aleatoric uncertainty is inherent in data, and can not be explain
 
 \begin{rSubsection}{Motivation for Modelling Uncertainties}
 \label{subsec: motivation}
-In this project, we study the uncertainty modelling problem in the context of image classification, a basic task in computer vision. 
+In this project, we study the uncertainty modeling problem in the context of image classification, a basic task in computer vision. 
 The motivation comes from two problems in deep neural networks. 
 
-First, conventional DNNs are considered to be deterministic.
-Because they only learn a single set of parameters, and thus providing a point estimation.
-However, from the discussions above, we see that uncertainty exists in both the network weight and input data. 
-Moreover, in applications that involves decision making (such as autonomous driving), we would like to consider all probable results and make sure the decision won't violate any rules or hurt anybody in all these conditions.
+First, conventional DNNs are deterministic, because they only learn a single set of parameters, thus providing a point estimation.
+However, based on the discussions above, uncertainty exists in both the network weight and input data. 
+Moreover, in applications that involve decision-making (such as autonomous driving), we would like to consider all probable results and make sure the decision won't violate any rules or hurt anybody in all these conditions.
 Thus, uncertainties must be seriously taken into account, and a point estimation won't be sufficient.
 
-Second, DNNs are usually overconfident about its results~\cite{guo2017calibration}, even if the results are wrong. 
-Figure~\ref{fig: intro example}~(b) shows an adversarial example~\cite{goodfellow2017ganlecture}, where we mix a carefully-chosen noise image to the image of a panda.
+Second, DNNs are usually overconfident about their results~\cite{guo2017calibration}, even if the results are wrong. 
+Figure~\ref{fig: intro example}~(b) shows an adversarial example~\cite{goodfellow2017ganlecture}, where we mix a carefully chosen noise image to the image of a panda.
 As a result, the network classifies the mixed image as a gibbon with very high confidence. 
 This error-prone overconfidence makes the output of DNNs even less reliable.
-Therefore, we would like to learn a model that is \textit{well-calibrated}, which means it's confidence should match the actual accuracy. 
+Therefore, we would like to learn a model that is \textit{well-calibrated}, which means its confidence should match the actual accuracy. 
 Then the distribution of confidence will reflect the uncertainties of the prediction.
 
-In short, an ideal model should learn the uncertainties its task and provide trustworthy confidence.
+In short, an ideal model should learn the uncertainties of its task and provide trustworthy confidence.
 
 \end{rSubsection}
 
@@ -339,7 +339,7 @@ Therefore, in this project, we will further extend the iBNN with Normalizing Flo
 \begin{rSection}{Normalizing Flows for Implicit BNN}
 \label{sec: nf for ibnn}
 \begin{rSubsection}{General Network Structure}
-The general structure of iBNN-style network is similar to conventional deep neural network.
+The general structure of iBNN-style network is similar to a conventional deep neural network.
 As shown in Figure~\ref{fig: network structure}, an iBNN-style network contains a series of deterministic layers and stochastic layers. 
 These two kinds of layers have the same interface, i.e., the same format for input and output, but different internal mechanisms.
 A deterministic layer refers to the building blocks of conventional neural network, such as convolution layer and linear layer.
@@ -361,8 +361,8 @@ Then, the base samples $\mathbf{z}_0$ will go through a stack of Normalizing Flo
 After that, the transformed samples will augment the output of the previous layer, i.e. $\mathbf{f}_{l-1}$, through element-wise multiplication.
 Finally, we put the augmented input $\mathbf{z}_l \circ \mathbf{f}_{l-1}$ into the deterministic component (Det. Compo) of that stochastic layer, which is literally a deterministic layer. 
 
-To represent the flow based distribution, we will need a number of samples.
-Therefore an input image will be augmented by different transformed samples, and the output will also consists of different samples, from which we can learn the output uncertainty. 
+To represent the flow-based distribution, we will need a number of samples.
+Therefore an input image will be augmented by different transformed samples, and the output will also consist of different samples, from which we can learn the output uncertainty. 
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{figs/general structure.pdf}
@@ -371,19 +371,19 @@ Therefore an input image will be augmented by different transformed samples, and
 \end{figure}
 \end{rSubsection}
 
-Notably, we assume that each layer has its own stochastic part, which is independent from other layers.
-Besides, the deterministic and stochastic part could be trained separately, and we can even migrate the weights for deterministic part from a pre-trained model. 
+Notably, we assume that each layer has its own stochastic part, which is independent of other layers.
+Besides, the deterministic and stochastic parts could be trained separately, and we can even migrate the weights for the deterministic part from a pre-trained model. 
 From this perspective, we can also regard the stochastic part as an extension to the original neural network. 
 
 \begin{rSubsection}{Properties Normalizing Flows}
 In probabilistic modeling and inference, we often need to find a balance between expressiveness and tractability.
-While simple distributions, such as Gaussian,  have nice analytical properties and is efficient to compute, their expressiveness is also highly limited.
-Sometimes even if we just move one step more complicated, the problem instantly lose analytical solution. 
-For example, the KL divergence of two Gaussian distributions have closed form solution, but if we change one of them into a mixture of Gaussian, there won't be general solution anymore. 
+While simple distributions, such as Gaussian,  have nice analytical properties and are efficient to compute, their expressiveness is also highly limited.
+Sometimes even if we just move one step more complicated, the problem instantly loses analytical solution. 
+For example, the KL divergence of two Gaussian distributions has closed-form solution, but if we change one of them into a mixture of Gaussian, there won't be a general solution anymore. 
 
 Normalizing Flows are a series of bijective (invertible) functions, with which we can construct arbitrarily complex distributions from a simple distribution. 
 In recent years, Normalizing Flows have been successfully applied to density estimation~\cite{rezende2015variational} and image generation~\cite{kingma2018glow}, where the exact value of parameters are learned from data. 
-These research works have shown the expressiveness of NFs, and in this project, we will apply them to image classification task and learn the uncertainties of images and feature vectors. 
+These research works have shown the expressiveness of NFs, and in this project, we will apply them to image classification tasks and learn the uncertainties of images and feature vectors. 
 
 Mathematically, a normalizing flow consists of one or several invertible transforms:
 \begin{equation}
@@ -409,15 +409,15 @@ Then, $J_{g_i}(\mathbf{z}_{i-1})$ computes the Jacobian matrix of the $i$-th lay
 After that, we compute the determinant ($\det$) of the Jacobian matrix, take its absolute value ($|\cdot|$) and then map to log space ($\log$).  
 For a tutorial on normalizing flow, please refer to~\cite{eric2018NFtutorial}, and for detailed proof please have a look at~\cite{papamakarios2019normalizing}.
 
-But here is an simplified example.
+But here is a simplified example.
 Consider a general function $y=f(x)$, where $x$ is a Gaussian random variable.
 Then a small interval on the $x$ axis $[x, x+dx]$ is mapped to $[y, y+dy]$.
 If we think of the corresponding probability mass on the two intervals like a physical flow (wind), the total probability mass will stay the same, just like the mass stays the same in a physical flow.
-Meanwhile, the density and volume could change because of outer environment. 
+Meanwhile, the density and volume could change because of the outer environment. 
 For wind, that would be different pressure in the atmosphere.
 But the product of density and volume, i.e., mass, must not change. 
 In in our example, density becomes probability density $p(x)$ and $p(y)$, and volume becomes $|dx|$ and $|dy|$.
-Here we take the absolute value because volume is always positive, but $|dx|$ and $|dy|$ could be either positive or negative.
+Here we take the absolute value because the volume is always positive, but $|dx|$ and $|dy|$ could be either positive or negative.
 Therefore we have an equation $p(x)|dx| = p(y)|dy|$, which is even simpler in log space:
 \begin{equation}
 	\log p(y) = \log p(x) - \log |\frac{dy}{dx}|.
@@ -465,7 +465,7 @@ Notably, we need to use the Matrix Determinant Lemma to get the final expression
 Here, the first $d$ elements $\mathbf{z}_{1: d}$ belongs to a group, and the rest $\mathbf{z}_{d+1: D}$ belongs to another.
 Meanwhile, $s(\cdot)$ and $t(\cdot)$ can be any functions. 
 As a result, the Jacobian matrix will be triangular (Equation~\ref{equ: affine coupling}), and thus the determinant will be the product of diagonal elements. 
-Usually we need the log of determinant, which turns out to be the sum of elements in $s(\mathbf{z}_{1: d})$.
+Usually, we need the log of determinant, which turns out to be the sum of elements in $s(\mathbf{z}_{1: d})$.
 \begin{equation}
 	\label{equ: affine coupling}
 	\begin{aligned}
@@ -480,10 +480,11 @@ Usually we need the log of determinant, which turns out to be the sum of element
 \end{equation}
 
 
-\textbf{$1 \times 1$ Invertible Convolution} is specially adapted for image data, and apply a shared weight matrix $\mathbf{W}$ across the height and width dimensions.
+\textbf{$1 \times 1$ Invertible Convolution} is specially adapted for image data, and applies a shared weight matrix $\mathbf{W}$ across the height and width dimensions.
 If we have an input image or feature map with size $(C, H, W)$, the size of weight matrix will be $C \times C$.
 Then, for each length-$C$ feature vector $\mathbf{z}_{i,j}$ across the height and width dimensions, we have the following equations:
 \begin{equation}
+	\label{equ: glow}
 	\begin{aligned}
 	\mathbf{z}'_{i,j} &= \mathbf{W}\mathbf{z}_{i,j}\\
 	J_g(\mathbf{z}_{i,j}) &= \mathbf{W} \\ 
@@ -494,17 +495,18 @@ Then, for each length-$C$ feature vector $\mathbf{z}_{i,j}$ across the height an
 \end{rSubsection}
 
 \begin{rSubsection}{Network Optimization}
-For this part, we will leverage the idea of variational inference~\cite{rezende2015variational}, which is learning a flow based distribution that best approximates the true distribution.
+For this part, we will leverage the idea of variational inference~\cite{rezende2015variational}, which is learning a flow-based distribution that best approximates the true distribution.
 The general problem formulation is the same as the original iBNN~\cite{trinh2020ibnn}, but the flow part has made some difference in the details.
 
 \textbf{Loss Formulation}
 
-Suppose the parameters $\theta$ of the deterministic part has already been trained, or has been migrated from a pre-trained model.
-With a dataset $\mathcal{D}$, we now want to learn the input uncertainty of each layer, which are described by the posterior distribution of latent random variables $\mathbf{z}_1,...,\mathbf{z}_l$. 
+Let's assume the parameters $\theta$ of the deterministic part have already been trained, or have been migrated from a pre-trained model.
+With a dataset $\mathcal{D}$, we now want to learn the input uncertainty of each layer, which is described by the posterior distribution of latent random variables $\mathbf{z}_1,...,\mathbf{z}_l$. 
 That is, we want to know the posterior distribution of the latent variables $p(\mathbf{z}_{1:l} | \mathcal{D}; \theta)$, but the true model is so complicated that we decide to use a flow-based posterior $q(\mathbf{z}_{1:l};\theta)$ to approximate it. 
 To this end, we minimize the KL divergence between the true posterior $p(\mathbf{z}_{1:l} | \mathcal{D}; \theta)$ and its approximation $q(\mathbf{z}_{1:l};\theta)$:
 
 \begin{equation}
+\label{equ: elbo derive}
 \begin{aligned}
 KL[q(\mathbf{z}_{1:l};\theta) || p(\mathbf{z}_{1:l} | \mathcal{D}; \theta)]
 &= \mathbb{E}_q[\ln q(\mathbf{z}_{1:l})] - \mathbb{E}_q[\ln p(\mathbf{z}_{1:l} | \mathcal{D})] \quad \text{(omit $\theta$ for simplicity)}\\ 
@@ -561,7 +563,7 @@ KL[q_0 || p] = \int q_0(\mathbf{z}) \log \frac{q_0(\mathbf{z})}{p(\mathbf{z})} d
 \end{equation}
 However, that is not our case, because $q_0$ is the base distribution and applies to the base random variable $\mathbf{z}_0$, while $p$ is placed on the transformed variable $\mathbf{z}_k$.
 
-In summary, with Equation~\ref{equ: final elbo} and~\ref{equ: kl div final}, we can add up the KL divergence layer by layer, and combine with the data likelihood term. 
+In summary, with Equation~\ref{equ: final elbo} and~\ref{equ: kl div final}, we can add up the KL divergence layer by layer, and combine it with the data likelihood term. 
 \end{rSubsection}
 \end{rSection}
 \clearpage
@@ -597,10 +599,10 @@ The upper left plot in Figure~\ref{fig: mlp classification} shows the data clust
 The red clusters have some overlap with the purple cluster, and the color of the grid points indicates the classification results.
 We can see the grid points near the purple cluster are assigned blue color, while the rest are assigned to red color.
 The decision boundary is a curved line that roughly splits the two classes, and the classification accuracy is 95.3\%.
-Meanwhile, the lower left plot shows the results from a 2-layer stochastic MLP.
+Meanwhile, the lower-left plot shows the results from a 2-layer stochastic MLP.
 A clear difference is a measurement of uncertainty, which is indicated by the size of the grid points. 
 Since the stochastic model is migrated from a deterministic one, the stochastic boundary is very close to the deterministic one. 
-From the plot, we observe reasonable high uncertainty near the boundary, and low uncertainty else where. 
+From the plot, we observe reasonable high uncertainty near the boundary, and low uncertainty elsewhere. 
 
 In the plots for confidence-accuracy gap, the red line represents the ideal case, where the confidence perfectly matches the actual accuracy.
 From the plots, we observe better calibration results in the stochastic model (lower right plot).
@@ -611,8 +613,8 @@ To investigate the effect of flow, we compare the training progress of stochasti
 Figure~\ref{fig: mlp with different flows} shows the trends of ELBO, likelihood and KL divergence at each training epochs.
 For this example, we use planar flow, and only change the length.
 As a special case, length 0 means the stochastic part has merely a learnable Gaussian distribution.
-From the plots, we observe that flow length 12 results in highest likelihood and ELBO, and flow length 0 gives lowest values.
-Therefore, the a flow part with reasonable length (12 here) could improve the model performance. 
+From the plots, we observe that flow length 12 results in the highest likelihood and ELBO, and flow length 0 gives the lowest values.
+Therefore, the flow part with a reasonable length (12 here) could improve the model performance. 
 
 \begin{figure}[H]
 	\centering
@@ -631,23 +633,23 @@ Since images are high-dimensional data, we don't have good methods to visualize 
 But we can still observe the training progress in Figure~\ref{fig: sto lenet} and Figure~\ref{fig: sto vgg}.
 
 Figure~\ref{fig: sto lenet} presents the training progress of LeNet-based models on FashionMnist~\cite{xiao2017fashion} and CIFAR-10~\cite{krizhevsky2009CIFAR}. 
-The three plots in the first row shows the trend of training losses, i.e., ELBO, log likelihood and KL Divergence. 
-Compared to the "no flow" version, the flow based model has higher data likelihood, higher KL divergence and larger ELBO for both datasets. 
-Same as before, the models labeled with "no flow" has only a learnable Gaussian distribution in the stochastic part of each layer.
-Higher data likelihood means the flow-based models can better fit the data, and higher KL divergence indicates that the flow based posterior deviates farther from the prior (Gaussian here), compared to the learnable Gaussian. 
+The three plots in the first row show the trend of ELBO, log-likelihood and KL Divergence. 
+Compared to the "no flow" version, the flow-based model has higher data likelihood, higher KL divergence and larger ELBO for both datasets. 
+Same as before, the models labeled with "no flow" have only a learnable Gaussian distribution in the stochastic part of each layer.
+Higher data likelihood means the flow-based models can better fit the data, and higher KL divergence indicates that the flow-based posterior deviates farther from the prior (Gaussian here), compared to the learnable Gaussian. 
 
-The two plots in the second row records the testing accuracy and ECE in each training epoch. 
-Both the flow-based model and its "no flow" version has outperformed the deterministic baseline after a few training epochs.
-Compared to the baseline, the improvements of stochastic models on CIFAR-10 is more evident than that on FashionMnist.
-A possible reason is the capacity basic LeNet is enough to handle the complexity of FashionMnist (nearly 90\% baseline accuracy).
+The two plots in the second row record the testing accuracy and ECE in each training epoch. 
+Both the flow-based model and its "no flow" version have outperformed the deterministic baseline after a few training epochs.
+Compared to the baseline, the improvements of stochastic models on CIFAR-10 are more evident than those on FashionMnist.
+A possible reason is the capacity of basic LeNet is enough to handle the complexity of FashionMnist (nearly 90\% baseline accuracy).
 Therefore the extra capacity introduced by the flows won't have significant effects.
 If we move to CIFAR-10, the effects of flows begin to manifest as the classification problem becomes more difficult.
-And the flow based model has about 2\% higher accuracy than the "no flow" version. 
+And the flow-based model has about 2\% higher accuracy than the "no flow" version. 
 However, the expected calibration loss is more unpredictable.
 While the baseline model is nicely calibrated, with ~1.5\% ECE on both datasets, the stochastic models could have even higher ECE.
 
 Besides, the input augmentation in our stochastic layer has similar mechanisms to Dropout.
-But the difference is, dropout applies binary random variable to the input, while our stochastic layer adopts real-valued augmentation. 
+But the difference is, dropout applies binary random variables to the input, while our stochastic layer adopts real-valued augmentation. 
 Since the basic LeNet does not have dropout layers, we also extended it with dropout and recorded the best accuracy and ECE as another baseline. 
 As a result, dropout didn't improve the classification accuracy, and the ECE (up to 5\%) is also higher than the basic LeNet.
 
@@ -666,12 +668,13 @@ As a result, dropout didn't improve the classification accuracy, and the ECE (up
 \end{figure}
 
 Figure~\ref{fig: sto vgg} shows the training progress of basic and stochastic VGG16.
-From the plots, we can see the flow part has almost no effect, despite the fact that both stochastic models has higher accuracies and lower ECE compared to baseline. 
-Again, these experiment results are also in favour of our conjecture above.
+From the plots, we can see the flow part has almost no effect, although both stochastic models have higher accuracies and lower ECE compared to baseline. 
+Again, these experiment results are also in favor of our conjecture above.
 The basic VGG16 model has enough capacity itself, because it can reach a high testing accuracy (93.15\%) on CIFAR10~\cite{sehwanjoo2020vggcifar10}.
-Therefore, the flow part, which introduces extra complexity, won't have substantial effect on VGG16. 
-Another evidence is the KL divergence in the flow based model, which decreases as training goes on. 
+Therefore, the flow part, which introduces extra complexity, won't have a substantial effect on VGG16. 
+Another evidence is the KL divergence in the flow-based model, which decreases as training goes on. 
 This trend means the training process is gradually leading the flow posterior back to the prior, which indicates the flow part is not necessarily helpful for higher classification accuracy.
+As for ECE, both the flow-based model and "no flow" model have generally smaller ECE than the deterministic baseline.
 
 \end{rSubsection}
 
@@ -679,159 +682,73 @@ This trend means the training process is gradually leading the flow posterior ba
 
 \begin{rSection}{Implementation Details}
 
-	\textbf{Flow Blocks}.
+\textbf{The Stochastic Part} in a stochastic layer could be very flexible, and in fact, we can even regard it as a small neural network. 
+We can choose the building blocks for the flow, the depths of all blocks, and which layers to use the flows. 
+To prevent too much overhead on the flow choices, we predefined a few basic blocks that could be used as the stochastic part of a stochastic layer. 
+For example:
+\begin{rlisting}
+	\item NormalAffine: a normal base distribution with an affine transformation (learnable Gaussian)
+	\item NormalPlanar1d: add 2 layers of 1d planar flows after NormalAffine block 
+	\item NormalInvConv: based on a NormalAffine block, sequentially add 2 layers of 2D planar flow, 3 invertible $1 \times 1$ convolution and another 2 layers of 2D planar flow.
+\end{rlisting}
+For detailed definition of flows, please refer to the flow folder of the codes. 
+In the "no flow" version of stochastic VGG and LeNet, we actually used "NormalAffine" for all the layers. 
+Since the flow part will introduce extra computation, we can not afford to use deep flows for all layers, and therefore we just extend part of the layers with flows.
+For LeNet model (3 conv + 2 linear), we used NormalInvConv for the second conventional layer, and NormalPlanar1d for the first linear layer.
+For VGG16 (13 conv + 3 linear), we used NormalInvConv at the 4th, 8th and 11th layers, and NormalPlanar1d at the second linear layer.
 
-	how did you code up the flow part? what flows are used for stolenet and stovgg? 
+\textbf{2D Planar Flow} is an adaptation for image data. 
+The idea is quite similar to invertible $1 \times 1$ convolution in Glow, that is using shared parameters across the width and height dimensions.
+Notably, the original Glow implementation considers the whole image/feature map as a vector, and the features at different height and width positions are independent parts in the vector, resulting in H*W parts in total. 
+The joint probability of the whole vector will be the multiplication of all H*W parts, and thus it becomes a sum in the log space.
+Therefore the original Glow implementation multiplied the log determinant of the shared matrix $\mathbf{W}$ with a coefficient H*W.
+But in our implementation for both Glow and 2D Planar Flow, we regard each position as an individual vector, and consider them separately.
+Thus, we don't multiply the log determinant by a coefficient.
 
-	mention how I implemented 2d planar here.
+\textbf{Samples} are used to describe the base distribution and flow-based posterior, both in training and testing. 
+During training, we use sample size 1, and in testing 128.
 
-	shall we multiply the glow log det by h*w?
+\textbf{Numerical Problem} was found when trying to use the "step of flow" block from the Glow paper.
+The problem may come from affine coupling layer, but the exact cause is yet not found. 
 
-	also say the number of samples for training and testing 
-	
 \end{rSection}
 
 \begin{rSection}{Discussions}
 
-	unsolved problems: lack of benchmark and metrics
+In this project, we applied normalizing flows to learn a flexible distribution for the input uncertainty of a neural network.
+The flow-based stochastic parts could provide a reasonable estimation of uncertainty and increase the capacity of the model. 
+However, if the basic model already has sufficient capacity, the flow part may not help increase the classification accuracy. 
+This project belongs to Bayesian Deep Learning, which is still an evolving research domain, and there remain some unsolved problems and possible ways for improvements.
 
-	need a good way to make use of the distribution, right now we just take the mean and variance 
+First is suitable benchmarks and metrics. 
+Back in the problem formulation stage, we started by approximating the true posterior with a flow-based distribution in Equation~\ref{equ: elbo derive}.
+Therefore, the best criterion to evaluate the flow posterior is to see how well it approximates the true posterior. 
+However, right now we don't have a good benchmark or metric to evaluate the quality of the posterior, and have to resort to classic metrics like accuracy and ECE.
 
-	how do we evaluate the quality of the posterior?
+Then, we also need a better way to exploit the output distribution.
+In our classification problem, each of the 10 classes has a corresponding output distribution, from which we compute the mean and variance of the class. 
+However, the distribution itself contains more information than mean and variance, and it would be better if we can find a way to extract more useful statistics from the distribution. 
 
-	some thoughts on possible improvements
+Besides, the posterior often contracts to a single point, and the flow will just help the network overfit the dataset.
+To encourage the flow to learn a diverse distribution, we can add the entropy of posterior to ELBO in~\ref{equ: final elbo}:
+\begin{equation}
+	\label{equ: modified elbo}
+	NEW\_LOSS 
+	=
+	\mathbb{E}_q[\ln p(\mathcal{D}|\mathbf{z}_{1:l})] - \beta \sum_{i=1}^{l} KL[q(\mathbf{z}_{i}) || p(\mathbf{z}_{i})] 
+	+ \gamma \sum_{i=1}^{l} H(q(\mathbf{z}_{i})).
+\end{equation}
+In fact, this change can be covered in the KL term. 
+In the first step in Equation~\ref{equ: kl div final}, we expand the KL term by definition, and the first term is exactly the negative entropy of the flow posterior.
+As a general notation, we have 
+\begin{equation}
+	KL[q||p] = cross\_entropy(q, p) - entropy(q).
+\end{equation}
+Therefore, if we want to emphasize the entropy of the flow posterior, we can simply multiply the first two terms in~\ref{equ: kl div final} with an coefficient larger than 1. 
 
-	KL[q||p] = cross\_entropy(q, p) - entropy(q), adding an entropy to ELBO will be equivalent to multiplying "entropy(q)" by a coefficient larger than 1
-	
 \end{rSection}
 
-% \begin{rSection}{The first Problem}
-% 	You may briefly state how you solve this problem here
-% 	\begin{rSubsection}{The first part of the problem}
-% 		in the first subsection, build a list with \mintinline{latex}{\begin{rlisting}}
-% 		\begin{rlisting}
-% 			\item just write something random
-% 			\item another random line
-% 		\end{rlisting}
-% 		build an ordered list with \mintinline{latex}{\begin{renum}}
-% 			\begin{renum}
-% 				\item just write something random
-% 				\item another random line
-% 			\end{renum}
-% 	\end{rSubsection}
-
-% 	\begin{rSubsection}{The second part of the problem}
-% 		in the second subsection, insert a figure
-% 		\begin{figure}[H]
-% 			\centering
-% 			\includegraphics[width=0.45\textwidth]{example-image-a}
-% 			\caption{Add captions here}
-% 		\end{figure}
-
-% 		Two figures with individual numbering and caption. Comment out \mintinline{text}{\caption{}} to remove individual caption for subfigures.
-% 		\begin{figure}[H]
-% 			\centering
-% 			\begin{subfigure}[t]{0.45\textwidth}
-% 			  \centering	
-% 			  \includegraphics[width=\textwidth]{example-image-a}
-% 			  \caption{some comments on this figure}
-% 			\end{subfigure}
-% 			\qquad
-% 			\begin{subfigure}[t]{0.45\textwidth}
-% 			  \includegraphics[width=\textwidth]{example-image-a}
-% 			  \caption{some other comments}
-% 			\end{subfigure}
-% 			\caption{Geometrical figures}
-% 		  \end{figure}
-		
-% 		Text with picture left-right structure, remember to keep the blank line below (maybe not very useful)
-
-% 		\begin{figure}[H]
-% 			\begin{minipage}[b]{0.5\linewidth} % use [c] here makes the text vertically centered
-% 				\centering
-% 				\includegraphics[width=\textwidth]{example-image-a}
-% 				\caption{some comments}
-% 			\end{minipage}%
-% 			\begin{minipage}[b]{0.5\linewidth} % use [c] here makes the text vertically centered
-% 				\centering
-% 				\begin{tabular}{|c|c|} 
-% 					\hline
-% 					aa & bb \\ \hline
-% 					cc & dd \\ \hline
-% 				\end{tabular}
-% 				\captionof{table}{Table caption}
-% 			\end{minipage}
-% 		\end{figure}
-
-% 		Maybe you need to cite something \cite{danelljan2014BMVC}, and you can specify the IEEE style by using in the end \mintinline{text}{\bibliographystyle{ieee_fullname}}, Elsevier Style with \mintinline{text}{elsarticle-num} and Harvard Style with \mintinline{text}{elsarticle-harv0}.
-% 		After this, please compile the tex file with \mintinline{text}{pdflatex->bibtex->pdflatex->pdflatex}.
-% 		If the main text has not cited anything, just use \mintinline{text}{pdflatex}
-% 	\end{rSubsection}
-% \end{rSection}
-
-
-% Sometimes we need to start a new page with \mintinline{latex}{\newpage} for a new question.
-% \newpage
-% \begin{rSection}{A new section for a new problem}
-% \begin{rSubsection}{the first step}
-% 	this is for inserting codes with or without a bounding box, remember to use \mintinline{text}{PDFLaTeX}
-
-% 	\begin{minted}[tabsize=4, bgcolor=bg, autogobble, escapeinside=||, frame=single]{python}
-% 		import numpy as np
-% 		def some_function(some_variables):
-% 			pass
-% 		# even put an under line in codes
-% 		|\ul{undelrine}| 
-% 	  \end{minted}
-% 	You will need to explain the codes a bit.
-
-% 	\begin{mdframed}[backgroundcolor=bg]
-% 	\begin{minted}[tabsize=4, autogobble, escapeinside=||]{python}
-% 		import numpy as np
-% 		def some_function(some_variables):
-% 			pass
-% 	\end{minted}
-% 	\end{mdframed}
-% 	You will need to explain the codes a bit.
-% \end{rSubsection}
-
-% \begin{rSubsection}{the second step}
-% 	We may need to type matrix equations 
-% 	\begin{equation}
-% 		T = 
-% 		\left[\begin{matrix} m_u & 0 & 0 \\0 & m_v & 0 \\ 0 & 0 & 1 \end{matrix}\right]
-% 		\left[\begin{matrix} 1 & 0 & u_{0} \\0 & 1 & v_{0} \\ 0 & 0 & 1 \end{matrix}\right]
-% 		\left[\begin{matrix} f & 0 & 0 \\0 & f & 0 \\ 0 & 0 & 1 \end{matrix}\right]
-% 		=
-% 		\left[\begin{matrix} fm_u & 0 & u_0 \\0 & fm_v & v_0 \\ 0 & 0 & 1 \end{matrix}\right].
-% 	\end{equation}
-% 	If you don't want the auto numbering 
-% 	$$
-% 		T = \left[\begin{matrix} m_u & 0 & 0 \\0 & m_v & 0 \\ 0 & 0 & 1 \end{matrix}\right]
-% 		\left[\begin{matrix} 1 & 0 & u_{0} \\0 & 1 & v_{0} \\ 0 & 0 & 1 \end{matrix}\right]
-% 		\left[\begin{matrix} f & 0 & 0 \\0 & f & 0 \\ 0 & 0 & 1 \end{matrix}\right]
-% 		=
-% 		\left[\begin{matrix} fm_u & 0 & u_0 \\0 & fm_v & v_0 \\ 0 & 0 & 1 \end{matrix}\right].
-% 	$$
-% 	or build a table to present data
-% 	\begin{table}[H]
-% 		\centering
-% 		\caption{Some random numbers}
-% 		\begin{tabular}{c|cccc}
-% 			\toprule
-% 			($\alpha$, $u$)& 0.7 & 0.8 & 0.9 & 1 \\
-% 			\midrule
-% 			1 & 25.3183 & 25.5442& 25.7192& 25.8589 \\
-% 			2 & 36.8104 & 37.6098 &38.2343 & 38.7359\\
-% 			3 & 44.1152 & 46.6144 & 48.6152 & {50.2597} \\
-% 			4 & 39.3190& 44.5661&\textcolor{red}{48.3255} &\textcolor{red}{51.3635} \\
-% 			5 & 18.0562& 35.4232 &42.3844 &47.0238 \\
-% 			\bottomrule
-% 		\end{tabular}
-% 	\end{table}
-% \end{rSubsection}
-% \end{rSection}
-
+\clearpage
 % \bibliographystyle{ieee_fullname}
 \bibliographystyle{elsarticle-num}
 % \bibliographystyle{elsarticle-harv}
