@@ -1,6 +1,6 @@
 ## Normalizing Flows for Implicit BNN
 
-This repo contains the files related to Weijiang Xiong's summer project at PML group. This project aims to learn a more flexible posterior for the input uncertainty with normalizing flow. 
+This repo contains the files related to Weijiang Xiong's summer project at PML group. This project aims to learn a more flexible posterior for the input uncertainty with normalizing flow. The codes are based on [IBNN](https://github.com/trungtrinh44/ibnn).
 
 Please look below for the directory structure 
 

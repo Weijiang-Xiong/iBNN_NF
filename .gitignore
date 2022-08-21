@@ -9,3 +9,5 @@ codes/models/trained/*
 *.blg
 *.log
 *_minted*
+*code_refs*
+*HPC Course*
